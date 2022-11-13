@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import torch
 from torch import nn
@@ -13,14 +14,14 @@ from regularizers import N3
 from logger import Logger
 
 
-def train(predictor, split_edge, optimizer, batch_size, device):
+def train(predictor, split_edge, optimizer, batch_size, reg_lambda, device):
     predictor.train()
 
     pos_train_edge = torch.from_numpy(split_edge["train"]["edge"]).to(device)
 
     total_loss = total_examples = 0
     loss_fn = nn.CrossEntropyLoss()
-    regularizer = N3(1e-3)
+    regularizer = N3(reg_lambda)
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
         optimizer.zero_grad()
         edge = pos_train_edge[perm]
@@ -70,6 +71,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         pos_train_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
     pos_valid_preds = []
@@ -84,6 +86,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         pos_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
     neg_valid_preds = []
@@ -98,6 +101,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         neg_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
     pos_test_preds = []
@@ -112,6 +116,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         pos_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
     neg_test_preds = []
@@ -126,6 +131,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         neg_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
     results = {}
@@ -153,16 +159,19 @@ def main():
     parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--log_steps", type=int, default=1)
-    # parser.add_argument("--num_layers", type=int, default=3)
     parser.add_argument("--hidden_channels", type=int, default=50)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--batch_size", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--reg_lambda", type=float, default=1e-3)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--eval_steps", type=int, default=1)
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--runs", type=int, default=2)
     args = parser.parse_args()
     print(args)
+    if not os.path.isdir(args.output_dir):
+        os.mkdir(args.output_dir)
 
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     device = torch.device(device)
@@ -173,18 +182,17 @@ def main():
 
     evaluator = Evaluator(name="ogbl-ppa")
     loggers = {
-        "Hits@10": Logger(args.runs, args),
-        "Hits@50": Logger(args.runs, args),
-        "Hits@100": Logger(args.runs, args),
+        "Hits@10": Logger(args.runs, args.output_dir, args),
+        "Hits@50": Logger(args.runs, args.output_dir, args),
+        "Hits@100": Logger(args.runs, args.output_dir, args),
     }
 
     for run in range(args.runs):
         predictor = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
-        optimizer = torch.optim.Adagrad(list(predictor.parameters()), lr=0.1)
+        optimizer = torch.optim.Adagrad(list(predictor.parameters()), lr=args.lr)
 
         for epoch in range(1, 1 + args.epochs):
-            loss = train(predictor, split_edge, optimizer,
-                         args.batch_size, device)
+            loss = train(predictor, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
 
             if epoch % args.eval_steps == 0:
                 results = test(predictor, split_edge, evaluator,

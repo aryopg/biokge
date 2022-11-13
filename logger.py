@@ -1,9 +1,14 @@
 import torch
+from datetime import datetime
+
+# datetime object containing current date and time
+now = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
 
 class Logger(object):
-    def __init__(self, runs, info=None):
+    def __init__(self, runs, output_dir, info=None):
         self.info = info
+        self.output_file = f"{output_dir}/{now}_log.txt"
         self.results = [[] for _ in range(runs)]
 
     def add_result(self, run, result):
@@ -23,13 +28,16 @@ class Logger(object):
         else:
             result = 100 * torch.tensor(self.results)
 
-            best_results = []
-            for r in result:
-                train1 = r[:, 0].max().item()
-                valid = r[:, 1].max().item()
-                train2 = r[r[:, 1].argmax(), 0].item()
-                test = r[r[:, 1].argmax(), 2].item()
-                best_results.append((train1, valid, train2, test))
+            with open(self.output_file, "w") as txt_file:
+                best_results = []
+                txt_file.write("Train, Validation, Final Train, Test\n")
+                for r in result:
+                    train1 = r[:, 0].max().item()
+                    valid = r[:, 1].max().item()
+                    train2 = r[r[:, 1].argmax(), 0].item()
+                    test = r[r[:, 1].argmax(), 2].item()
+                    best_results.append((train1, valid, train2, test))
+                    txt_file.write("{},{},{},{}\n".format(train1, valid, train2, test))
 
             best_result = torch.tensor(best_results)
 

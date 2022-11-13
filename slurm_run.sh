@@ -48,7 +48,7 @@
 # #SBATCH --cpus-per-task=4
 
 # Maximum time for the job to run, format: days-hours:minutes:seconds
-# #SBATCH --time=1-04:00:00
+# #SBATCH --time=2-00:00:00
 
 # Partition of the cluster to pick nodes from (check `sinfo`)
 # #SBATCH --partition=PGR-Standard
