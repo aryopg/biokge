@@ -69,7 +69,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_train_preds += [predictor(edge)[0].squeeze().cpu()]
+        pos_train_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
     pos_valid_preds = []
@@ -83,7 +83,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_valid_preds += [predictor(edge)[0].squeeze().cpu()]
+        pos_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
     neg_valid_preds = []
@@ -97,7 +97,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_valid_preds += [predictor(edge)[0].squeeze().cpu()]
+        neg_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
     pos_test_preds = []
@@ -111,8 +111,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        edge = pos_test_edge[perm].t()
-        pos_test_preds += [predictor(edge)[0] .squeeze().cpu()]
+        pos_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
     neg_test_preds = []
@@ -126,7 +125,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_test_preds += [predictor(edge)[0] .squeeze().cpu()]
+        neg_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
     results = {}
