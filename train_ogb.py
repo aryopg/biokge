@@ -37,10 +37,6 @@ def train(predictor, split_edge, optimizer, batch_size, device):
         loss_fit = loss_fn(predictions, edge[2])
         loss_reg, loss_reg_raw, avg_lmbda = regularizer.penalty(factors)
 
-        print(f"loss_fit: {loss_fit}")
-        print(f"loss_reg: {loss_reg}")
-        print(f"num_examples: {predictions.size(0)}")
-
         loss = loss_fit + loss_reg
         loss.backward()
         optimizer.step()
@@ -73,7 +69,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_train_preds += [predictor(edge[0], edge[1]).squeeze().cpu()]
+        pos_train_preds += [predictor(edge)[0].squeeze().cpu()]
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
     pos_valid_preds = []
@@ -87,7 +83,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_valid_preds += [predictor(edge[0], edge[1]).squeeze().cpu()]
+        pos_valid_preds += [predictor(edge)[0].squeeze().cpu()]
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
     neg_valid_preds = []
@@ -101,7 +97,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_valid_preds += [predictor(edge[0], edge[1]).squeeze().cpu()]
+        neg_valid_preds += [predictor(edge)[0].squeeze().cpu()]
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
     pos_test_preds = []
@@ -116,7 +112,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             axis=0
         )
         edge = pos_test_edge[perm].t()
-        pos_test_preds += [predictor(edge[0], edge[1]).squeeze().cpu()]
+        pos_test_preds += [predictor(edge)[0] .squeeze().cpu()]
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
     neg_test_preds = []
@@ -130,7 +126,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_test_preds += [predictor(edge[0], edge[1]).squeeze().cpu()]
+        neg_test_preds += [predictor(edge)[0] .squeeze().cpu()]
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
     results = {}
