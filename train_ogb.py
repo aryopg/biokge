@@ -164,7 +164,7 @@ def main():
     args = parser.parse_args()
     print(args)
 
-    device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps"
+    device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     device = torch.device(device)
 
     dataset = LinkPropPredDataset(name="ogbl-ppa")
