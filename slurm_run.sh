@@ -144,7 +144,7 @@ conda activate ${CONDA_ENV_NAME}
 # COMMAND="`sed \"${SLURM_ARRAY_TASK_ID}q;d\" ${experiment_text_file}`"
 # echo "Running provided command: ${COMMAND}"
 # eval "${COMMAND}"
-python train-ogb.py
+python train-ogb.py --hidden_channels=500 --reg_lambda=1e-3 --batch_size 5000
 
 # ======================================
 # Move output data from scratch to DFS
