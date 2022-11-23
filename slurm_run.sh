@@ -51,7 +51,7 @@
 # #SBATCH --time=2-00:00:00
 
 # Partition of the cluster to pick nodes from (check `sinfo`)
-# #SBATCH --partition=PGR-Standard
+# #SBATCH --partition=ILCC_GPU
 
 # Any nodes to exclude from selection
 # #SBATCH --exclude=charles[05,12-18]
