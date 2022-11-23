@@ -145,7 +145,7 @@ conda activate ${CONDA_ENV_NAME}
 # echo "Running provided command: ${COMMAND}"
 # eval "${COMMAND}"
 # limit of 12 GB GPU is hidden 256 and batch size 256
-python train-ogb.py --hidden_channels=256 --reg_lambda=1e-3 --batch_size 256
+python train_ogb.py --hidden_channels=256 --reg_lambda=1e-3 --batch_size 256
 
 # ======================================
 # Move output data from scratch to DFS
