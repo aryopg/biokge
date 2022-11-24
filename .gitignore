@@ -162,4 +162,7 @@ cython_debug/
 data/
 dataset/
 
+wandb/
+output/
+
 .DS_Store
