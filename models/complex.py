@@ -24,9 +24,9 @@ class ComplEx(nn.Module):
         self.relation_embeddings.weight.data *= init_size
 
     def score(self, x: torch.Tensor):
-        lhs = self.entity_embeddings(x[:, 0])
-        rel = self.relation_embeddings(torch.IntTensor([0] * x.size(0)))
-        rhs = self.entity_embeddings(x[:, 2])
+        lhs = self.entity_embeddings(x[0])
+        rel = self.relation_embeddings(x[1])
+        rhs = self.entity_embeddings(x[2])
 
         lhs = lhs[:, :self.rank], lhs[:, self.rank:]
         rel = rel[:, :self.rank], rel[:, self.rank:]
@@ -78,7 +78,7 @@ class ComplEx(nn.Module):
         elif score_lhs and score_rel:
             pass
         elif score_rhs and score_lhs:
-            pass
+            return (rhs_scores, lhs_scores), factors
         elif score_rhs:
             return rhs_scores, factors
         elif score_rel:
