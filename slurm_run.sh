@@ -99,7 +99,8 @@ rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 # eval "${COMMAND}"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 echo "Running experiment"
-python train_ogb.py --hidden_channels 256 --reg_lambda 1e-3 --epochs 100 --batch_size 256 --runs 1
+# python train_ogb.py --hidden_channels 256 --reg_lambda 1e-3 --epochs 100 --batch_size 256 --runs 1
+python train_ogb.py
 
 # ======================================
 # Move output data from scratch to DFS
