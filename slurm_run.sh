@@ -1,60 +1,13 @@
 #!/bin/bash
-# Author(s): James Owers (james.f.owers@gmail.com)
-#
-# Template for running an sbatch arrayjob with a file containing a list of
-# commands to run. Copy this, remove the .template, and edit as you wish to
-# fit your needs.
-# 
-# Assuming this file has been edited and renamed slurm_arrayjob.sh, here's an
-# example usage:
-# ```
-# EXPT_FILE=experiments.txt  # <- this has a command to run on each line
-# NR_EXPTS=`cat ${EXPT_FILE} | wc -l`
-# MAX_PARALLEL_JOBS=12 
-# sbatch --array=1-${NR_EXPTS}%${MAX_PARALLEL_JOBS} slurm_arrayjob.sh $EXPT_FILE
-# ```
-#
-# or, equivalently and as intended, with provided `run_experiement`:
-# ```
-# run_experiment -b slurm_arrayjob.sh -e experiments.txt -m 12
-# ```
-
-
-# ====================
-# Options for sbatch
-# ====================
-# FMI about options, see https://slurm.schedmd.com/sbatch.html
-# N.B. options supplied on the command line will overwrite these set here
-
-# *** To set any of these options, remove the first comment hash '# ' ***
-# i.e. `# # SBATCH ...` -> `#SBATCH ...`
-
-# Location for stdout log - see https://slurm.schedmd.com/sbatch.html#lbAH
-#SBATCH --output=/home/%u/slurm_logs/slurm-%A_%a.out
-
-# Location for stderr log - see https://slurm.schedmd.com/sbatch.html#lbAH
-#SBATCH --error=/home/%u/slurm_logs/slurm-%A_%a.out
-
-# Maximum number of nodes to use for the job
-#SBATCH --nodes=1
-
-# Generic resources to use - typically you'll want gpu:n to get n gpus
-#SBATCH --gres=gpu:1
-
-# Megabytes of RAM required. Check `cluster-status` for node configurations
-#SBATCH --mem=14000
-
-# Number of CPUs to use. Check `cluster-status` for node configurations
-#SBATCH --cpus-per-task=4
-
-# Maximum time for the job to run, format: days-hours:minutes:seconds
-#SBATCH --time=2-00:00:00
-
-# Partition of the cluster to pick nodes from (check `sinfo`)
+#SBATCH -o /home/%u/slogs/sl_%A.out
+#SBATCH -e /home/%u/slogs/sl_%A.out
+#SBATCH -N 1	  # nodes requested
+#SBATCH -n 1	  # tasks requested
+#SBATCH --gres=gpu:1  # use 1 GPU
+#SBATCH --mem=14000  # memory in Mb
 #SBATCH --partition=ILCC_GPU
-
-# Any nodes to exclude from selection
-# # SBATCH --exclude=charles[05,12-18]
+#SBATCH -t 12:00:00  # time requested in hour:minute:seconds
+#SBATCH --cpus-per-task=2
 
 
 # =====================
@@ -111,14 +64,14 @@ conda activate ${CONDA_ENV_NAME}
 # the scratch space on the nodes, see:
 #     http://computing.help.inf.ed.ac.uk/cluster-tips
 
-# echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
+echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
 
 # # input data directory path on the DFS
-# src_path=/home/${USER}/kge-playground/data/input
+src_path=/home/${USER}/kge-playground/dataset/ogbl_ppa
 
 # # input data directory path on the scratch disk of the node
-# dest_path=${SCRATCH_HOME}/kge-playground/data/input
-# mkdir -p ${dest_path}  # make it if required
+dest_path=${SCRATCH_HOME}/kge-playground/dataset/ogbl_ppa
+mkdir -p ${dest_path}  # make it if required
 
 # Important notes about rsync:
 # * the --compress option is going to compress the data before transfer to send
@@ -130,7 +83,7 @@ conda activate ${CONDA_ENV_NAME}
 # * for more about the (endless) rsync options, see the docs:
 #       https://download.samba.org/pub/rsync/rsync.html
 
-# rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
+rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 
 # ==============================
 # Finally, run the experiment!
@@ -145,7 +98,8 @@ conda activate ${CONDA_ENV_NAME}
 # echo "Running provided command: ${COMMAND}"
 # eval "${COMMAND}"
 # limit of 12 GB GPU is hidden 256 and batch size 256
-python train_ogb.py --hidden_channels=256 --reg_lambda=1e-3 --batch_size 256
+echo "Running experiment"
+python train_ogb.py --hidden_channels 256 --reg_lambda 1e-3 --batch_size 256 --runs 1
 
 # ======================================
 # Move output data from scratch to DFS
