@@ -30,31 +30,31 @@
 # i.e. `# # SBATCH ...` -> `#SBATCH ...`
 
 # Location for stdout log - see https://slurm.schedmd.com/sbatch.html#lbAH
-# #SBATCH --output=/home/%u/slurm_logs/slurm-%A_%a.out
+#SBATCH --output=/home/%u/slurm_logs/slurm-%A_%a.out
 
 # Location for stderr log - see https://slurm.schedmd.com/sbatch.html#lbAH
-# #SBATCH --error=/home/%u/slurm_logs/slurm-%A_%a.out
+#SBATCH --error=/home/%u/slurm_logs/slurm-%A_%a.out
 
 # Maximum number of nodes to use for the job
-# #SBATCH --nodes=1
+#SBATCH --nodes=1
 
 # Generic resources to use - typically you'll want gpu:n to get n gpus
-# #SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:1
 
 # Megabytes of RAM required. Check `cluster-status` for node configurations
-# #SBATCH --mem=14000
+#SBATCH --mem=14000
 
 # Number of CPUs to use. Check `cluster-status` for node configurations
-# #SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=4
 
 # Maximum time for the job to run, format: days-hours:minutes:seconds
-# #SBATCH --time=2-00:00:00
+#SBATCH --time=2-00:00:00
 
 # Partition of the cluster to pick nodes from (check `sinfo`)
-# #SBATCH --partition=ILCC_GPU
+#SBATCH --partition=ILCC_GPU
 
 # Any nodes to exclude from selection
-# #SBATCH --exclude=charles[05,12-18]
+# # SBATCH --exclude=charles[05,12-18]
 
 
 # =====================
