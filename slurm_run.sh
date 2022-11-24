@@ -7,7 +7,7 @@
 #SBATCH --mem=14000  # memory in Mb
 #SBATCH --partition=ILCC_GPU
 #SBATCH -t 12:00:00  # time requested in hour:minute:seconds
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 
 
 # =====================
