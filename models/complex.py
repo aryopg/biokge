@@ -1,37 +1,5 @@
-from typing import Tuple, List, Dict
-from collections import defaultdict
 import torch
 from torch import nn
-
-
-def filtering(scores, these_queries, filters, n_rel, n_ent, 
-              c_begin, chunk_size, query_type):
-    # set filtered and true scores to -1e6 to be ignored
-    # take care that scores are chunked
-    for i, query in enumerate(these_queries):
-        existing_s = (query[0].item(), query[1].item()) in filters # reciprocal training always has candidates = rhs
-        existing_r = (query[2].item(), query[1].item() + n_rel) in filters # standard training separate rhs and lhs
-        if query_type == 'rhs':
-            if existing_s:
-                filter_out = filters[(query[0].item(), query[1].item())]
-                # filter_out += [queries[b_begin + i, 2].item()]
-                filter_out += [query[2].item()]
-        if query_type == 'lhs':
-            if existing_r:
-                filter_out = filters[(query[2].item(), query[1].item() + n_rel)]
-                # filter_out += [queries[b_begin + i, 0].item()]    
-                filter_out += [query[0].item()]                         
-        if query_type == 'rel':
-            pass
-        if chunk_size < n_ent:
-            filter_in_chunk = [
-                    int(x - c_begin) for x in filter_out
-                    if c_begin <= x < c_begin + chunk_size
-            ]
-            scores[i, torch.LongTensor(filter_in_chunk)] = -1e6
-        else:
-            scores[i, torch.LongTensor(filter_out)] = -1e6
-    return scores
 
 
 class ComplEx(nn.Module):
@@ -55,7 +23,7 @@ class ComplEx(nn.Module):
         self.relation_embeddings.weight.data.uniform_(-init_range, init_range)
         self.relation_embeddings.weight.data *= init_size
 
-    def score(self, x):
+    def score(self, x: torch.Tensor):
         lhs = self.entity_embeddings(x[:, 0])
         rel = self.relation_embeddings(torch.IntTensor([0] * x.size(0)))
         rhs = self.entity_embeddings(x[:, 2])
@@ -70,7 +38,7 @@ class ComplEx(nn.Module):
             1, keepdim=True
         )
 
-    def forward(self, x, score_rhs=True, score_rel=False, score_lhs=False):
+    def forward(self, x: torch.Tensor, score_rhs: bool = True, score_rel: bool =False, score_lhs: bool =False):
         lhs = self.entity_embeddings(x[0])
         rel = self.relation_embeddings(x[1])
         rhs = self.entity_embeddings(x[2])

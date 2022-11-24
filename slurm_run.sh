@@ -34,7 +34,7 @@ rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 
 echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
-python train_ogb.py \
+python scripts/train_ogb.py \
 --hidden_channels=256 \
 --reg_lambda=1e-3 \
 --epochs=100 \

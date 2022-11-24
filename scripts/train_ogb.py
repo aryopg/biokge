@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+sys.path.append(os.getcwd())
 
 import torch
 from torch import nn
@@ -8,10 +10,10 @@ from torch.utils.data import DataLoader
 
 from ogb.linkproppred import LinkPropPredDataset, Evaluator
 
-from models import ComplEx
-from regularizers import N3
+from models.complex import ComplEx
+from models.regularizers import N3
 
-from logger import Logger
+from utils.logger import Logger
 
 
 def train(predictor, split_edge, optimizer, batch_size, reg_lambda, device):
