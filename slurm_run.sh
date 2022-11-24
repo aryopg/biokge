@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH -o /home/%u/slogs/sl_%A.out
-#SBATCH -e /home/%u/slogs/sl_%A.out
+# # SBATCH -o /home/%u/slogs/sl_%A.out
+# # SBATCH -e /home/%u/slogs/sl_%A.out
 #SBATCH -N 1	  # nodes requested
 #SBATCH -n 1	  # tasks requested
 #SBATCH --gres=gpu:1  # use 1 GPU
@@ -99,7 +99,7 @@ rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 # eval "${COMMAND}"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 echo "Running experiment"
-python train_ogb.py --hidden_channels 256 --reg_lambda 1e-3 --batch_size 256 --runs 1
+python train_ogb.py --hidden_channels 256 --reg_lambda 1e-3 --epochs 100 --batch_size 256 --runs 1
 
 # ======================================
 # Move output data from scratch to DFS
