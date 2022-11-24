@@ -1,17 +1,13 @@
 import argparse
 import os
 
-print("[DEBUG] Loading torch")
-
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-print("[DEBUG] Loading OGB")
 from ogb.linkproppred import LinkPropPredDataset, Evaluator
 
-print("[DEBUG] Loading model")
 from models import ComplEx
 from regularizers import N3
 
@@ -159,71 +155,70 @@ def test(predictor, split_edge, evaluator, batch_size, device):
     return results
 
 
-# def main():
-print("[DEBUG] in main")
-parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
-parser.add_argument("--device", type=int, default=0)
-parser.add_argument("--log_steps", type=int, default=1)
-parser.add_argument("--hidden_channels", type=int, default=256)
-parser.add_argument("--dropout", type=float, default=0.0)
-parser.add_argument("--batch_size", type=int, default=256)
-parser.add_argument("--lr", type=float, default=0.1)
-parser.add_argument("--reg_lambda", type=float, default=1e-3)
-parser.add_argument("--epochs", type=int, default=100)
-parser.add_argument("--eval_steps", type=int, default=1)
-parser.add_argument("--output_dir", type=str, default="output")
-parser.add_argument("--runs", type=int, default=1)
-args = parser.parse_args()
-print(args)
-if not os.path.isdir(args.output_dir):
-    os.mkdir(args.output_dir)
+def main():
+    parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
+    parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--log_steps", type=int, default=1)
+    parser.add_argument("--hidden_channels", type=int, default=256)
+    parser.add_argument("--dropout", type=float, default=0.0)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--reg_lambda", type=float, default=1e-3)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--eval_steps", type=int, default=1)
+    parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--runs", type=int, default=1)
+    args = parser.parse_args()
+    print(args)
+    if not os.path.isdir(args.output_dir):
+        os.mkdir(args.output_dir)
 
-device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-device = torch.device(device)
+    device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    device = torch.device(device)
 
-dataset = LinkPropPredDataset(name="ogbl-ppa")
-split_edge = dataset.get_edge_split()
-data = dataset[0]
+    dataset = LinkPropPredDataset(name="ogbl-ppa")
+    split_edge = dataset.get_edge_split()
+    data = dataset[0]
 
-evaluator = Evaluator(name="ogbl-ppa")
-loggers = {
-    "Hits@10": Logger(args.runs, args.output_dir, args),
-    "Hits@50": Logger(args.runs, args.output_dir, args),
-    "Hits@100": Logger(args.runs, args.output_dir, args),
-}
+    evaluator = Evaluator(name="ogbl-ppa")
+    loggers = {
+        "Hits@10": Logger(args.runs, args.output_dir, args),
+        "Hits@50": Logger(args.runs, args.output_dir, args),
+        "Hits@100": Logger(args.runs, args.output_dir, args),
+    }
 
-for run in range(args.runs):
-    predictor = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
-    optimizer = torch.optim.Adagrad(list(predictor.parameters()), lr=args.lr)
+    for run in range(args.runs):
+        predictor = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
+        optimizer = torch.optim.Adagrad(list(predictor.parameters()), lr=args.lr)
 
-    for epoch in range(1, 1 + args.epochs):
-        loss = train(predictor, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
+        for epoch in range(1, 1 + args.epochs):
+            loss = train(predictor, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
 
-        if epoch % args.eval_steps == 0:
-            results = test(predictor, split_edge, evaluator,
-                            args.batch_size, device)
-            for key, result in results.items():
-                loggers[key].add_result(run, result)
-
-            if epoch % args.log_steps == 0:
+            if epoch % args.eval_steps == 0:
+                results = test(predictor, split_edge, evaluator,
+                                args.batch_size, device)
                 for key, result in results.items():
-                    train_hits, valid_hits, test_hits = result
-                    print(key)
-                    print(f"Run: {run + 1:02d}, "
-                            f"Epoch: {epoch:02d}, "
-                            f"Loss: {loss:.4f}, "
-                            f"Train: {100 * train_hits:.2f}%, "
-                            f"Valid: {100 * valid_hits:.2f}%, "
-                            f"Test: {100 * test_hits:.2f}%")
+                    loggers[key].add_result(run, result)
+
+                if epoch % args.log_steps == 0:
+                    for key, result in results.items():
+                        train_hits, valid_hits, test_hits = result
+                        print(key)
+                        print(f"Run: {run + 1:02d}, "
+                                f"Epoch: {epoch:02d}, "
+                                f"Loss: {loss:.4f}, "
+                                f"Train: {100 * train_hits:.2f}%, "
+                                f"Valid: {100 * valid_hits:.2f}%, "
+                                f"Test: {100 * test_hits:.2f}%")
+
+        for key in loggers.keys():
+            print(key)
+            loggers[key].print_statistics(run)
 
     for key in loggers.keys():
         print(key)
-        loggers[key].print_statistics(run)
-
-for key in loggers.keys():
-    print(key)
-    loggers[key].print_statistics()
+        loggers[key].print_statistics()
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
