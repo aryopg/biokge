@@ -7,7 +7,7 @@ conda update conda
 conda create -n kge_playground python=3.9
 conda activate kge_playground
 conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
-conda install -c conda-forge ogb
+conda install -c conda-forge ogb wandb
 ```
 
 ## Example Training

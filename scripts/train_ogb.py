@@ -10,14 +10,16 @@ from torch.utils.data import DataLoader
 
 from ogb.linkproppred import LinkPropPredDataset, Evaluator
 
+import wandb
+
 from models.complex import ComplEx
 from models.regularizers import N3
 
 from utils.logger import Logger
 
 
-def train(predictor, split_edge, optimizer, batch_size, reg_lambda, device):
-    predictor.train()
+def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
+    model.train()
 
     pos_train_edge = torch.from_numpy(split_edge["train"]["edge"]).to(device)
 
@@ -36,7 +38,7 @@ def train(predictor, split_edge, optimizer, batch_size, reg_lambda, device):
             axis=0
         )
 
-        predictions, factors = predictor(edge)
+        predictions, factors = model(edge)
         loss_fit = loss_fn(predictions, edge[2])
         loss_reg, loss_reg_raw, avg_lmbda = regularizer.penalty(factors)
 
@@ -52,8 +54,8 @@ def train(predictor, split_edge, optimizer, batch_size, reg_lambda, device):
 
 
 @torch.no_grad()
-def test(predictor, split_edge, evaluator, batch_size, device):
-    predictor.eval()
+def test(model, split_edge, evaluator, batch_size, device):
+    model.eval()
 
     pos_train_edge = torch.from_numpy(split_edge["train"]["edge"]).to(device)
     pos_valid_edge = torch.from_numpy(split_edge["valid"]["edge"]).to(device)
@@ -72,7 +74,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_train_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        pos_train_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
         
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
@@ -87,7 +89,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        pos_valid_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
         
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
@@ -102,7 +104,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_valid_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        neg_valid_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
         
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
@@ -117,7 +119,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        pos_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        pos_test_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
         
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
@@ -132,7 +134,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
             ],
             axis=0
         )
-        neg_test_preds += [torch.argmax(predictor(edge)[0], dim=1).squeeze().cpu()]
+        neg_test_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
         
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
@@ -160,7 +162,6 @@ def test(predictor, split_edge, evaluator, batch_size, device):
 def main():
     parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
     parser.add_argument("--device", type=int, default=0)
-    parser.add_argument("--log_steps", type=int, default=1)
     parser.add_argument("--hidden_channels", type=int, default=256)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--batch_size", type=int, default=256)
@@ -174,6 +175,16 @@ def main():
     print(args)
     if not os.path.isdir(args.output_dir):
         os.mkdir(args.output_dir)
+
+    wandb.init(project="kge_ppa", entity="aryopg")
+    wandb.config = {
+        "lr": args.lr,
+        "reg_lambda": args.reg_lambda,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "hidden_channels": args.hidden_channels,
+        "dropout": args.dropout,
+    }
 
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     device = torch.device(device)
@@ -190,28 +201,47 @@ def main():
     }
 
     for run in range(args.runs):
-        predictor = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
-        optimizer = torch.optim.Adagrad(list(predictor.parameters()), lr=args.lr)
+        model = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
+        optimizer = torch.optim.Adagrad(list(model.parameters()), lr=args.lr)
 
         for epoch in range(1, 1 + args.epochs):
-            loss = train(predictor, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
+            loss = train(model, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
 
             if epoch % args.eval_steps == 0:
-                results = test(predictor, split_edge, evaluator,
+                results = test(model, split_edge, evaluator,
                                 args.batch_size, device)
+
+                wandb_logs = {
+                    "epoch": epoch,
+                    "train_loss": loss,
+                    "train_hits@10": None,
+                    "valid_hits@10": None,
+                    "test_hits@10": None,
+                    "train_hits@50": None,
+                    "valid_hits@50": None,
+                    "test_hits@50": None,
+                    "train_hits@100": None,
+                    "valid_hits@100": None,
+                    "test_hits@100": None,
+                }
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
+                    train_hits, valid_hits, test_hits = result
+                    wandb_logs.update({
+                        f"train_{key.lower()}": train_hits,
+                        f"valid_{key.lower()}": valid_hits,
+                        f"test_{key.lower()}": test_hits,
+                    })
 
-                if epoch % args.log_steps == 0:
-                    for key, result in results.items():
-                        train_hits, valid_hits, test_hits = result
-                        print(key)
-                        print(f"Run: {run + 1:02d}, "
-                                f"Epoch: {epoch:02d}, "
-                                f"Loss: {loss:.4f}, "
-                                f"Train: {100 * train_hits:.2f}%, "
-                                f"Valid: {100 * valid_hits:.2f}%, "
-                                f"Test: {100 * test_hits:.2f}%")
+                    print(key)
+                    print(f"Run: {run + 1:02d}, "
+                            f"Epoch: {epoch:02d}, "
+                            f"Loss: {loss:.4f}, "
+                            f"Train: {100 * train_hits:.2f}%, "
+                            f"Valid: {100 * valid_hits:.2f}%, "
+                            f"Test: {100 * test_hits:.2f}%")
+                wandb.log(wandb_logs)
+            wandb.watch(model)
 
         for key in loggers.keys():
             print(key)
