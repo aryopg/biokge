@@ -1,13 +1,17 @@
 import argparse
 import os
 
+print("Loading torch")
+
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+print("Loading OGB")
 from ogb.linkproppred import LinkPropPredDataset, Evaluator
 
+print("Loading model")
 from models import ComplEx
 from regularizers import N3
 
@@ -156,6 +160,7 @@ def test(predictor, split_edge, evaluator, batch_size, device):
 
 
 def main():
+    print("in main")
     parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--log_steps", type=int, default=1)
@@ -196,7 +201,7 @@ def main():
 
             if epoch % args.eval_steps == 0:
                 results = test(predictor, split_edge, evaluator,
-                               args.batch_size, device)
+                                args.batch_size, device)
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
 
@@ -205,11 +210,11 @@ def main():
                         train_hits, valid_hits, test_hits = result
                         print(key)
                         print(f"Run: {run + 1:02d}, "
-                              f"Epoch: {epoch:02d}, "
-                              f"Loss: {loss:.4f}, "
-                              f"Train: {100 * train_hits:.2f}%, "
-                              f"Valid: {100 * valid_hits:.2f}%, "
-                              f"Test: {100 * test_hits:.2f}%")
+                                f"Epoch: {epoch:02d}, "
+                                f"Loss: {loss:.4f}, "
+                                f"Train: {100 * train_hits:.2f}%, "
+                                f"Valid: {100 * valid_hits:.2f}%, "
+                                f"Test: {100 * test_hits:.2f}%")
 
         for key in loggers.keys():
             print(key)
