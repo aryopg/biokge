@@ -18,6 +18,16 @@ from models.regularizers import N3
 from utils.logger import Logger
 
 
+def preprocessing_triples(edge, device):
+    subj = edge[:, 0].unsqueeze(0)
+    obj = edge[:, 1].unsqueeze(0)
+    return torch.cat(
+        [subj, torch.zeros_like(subj, device=device), obj],
+        axis=0
+    )
+
+
+
 def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
     model.train()
 
@@ -29,24 +39,21 @@ def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
         optimizer.zero_grad()
         edge = pos_train_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
+        edge = preprocessing_triples(edge, device)
 
-        predictions, factors = model(edge)
-        loss_fit = loss_fn(predictions, edge[2])
+        predictions, factors = model(edge, score_rhs=True, score_lhs=True)
+        # Right hand side loss
+        rhs_loss_fit = loss_fn(predictions[0], edge[2].squeeze())
+        # Left hand side loss
+        lhs_loss_fit = loss_fn(predictions[1], edge[0].squeeze())
+        loss_fit = rhs_loss_fit + lhs_loss_fit
         loss_reg, loss_reg_raw, avg_lmbda = regularizer.penalty(factors)
 
         loss = loss_fit + loss_reg
         loss.backward()
         optimizer.step()
 
-        num_examples = predictions.size(0)
+        num_examples = predictions[0].size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
 
@@ -66,75 +73,40 @@ def test(model, split_edge, evaluator, batch_size, device):
     pos_train_preds = []
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size):
         edge = pos_train_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
-        pos_train_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
+        edge = preprocessing_triples(edge, device)
+        pos_train_preds += [model.score(edge).squeeze().cpu()]
         
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
     pos_valid_preds = []
     for perm in DataLoader(range(pos_valid_edge.size(0)), batch_size):
         edge = pos_valid_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
-        pos_valid_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
+        edge = preprocessing_triples(edge, device)
+        pos_valid_preds += [model.score(edge).squeeze().cpu()]
         
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
     neg_valid_preds = []
     for perm in DataLoader(range(neg_valid_edge.size(0)), batch_size):
         edge = neg_valid_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
-        neg_valid_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
+        edge = preprocessing_triples(edge, device)
+        neg_valid_preds += [model.score(edge).squeeze().cpu()]
         
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
     pos_test_preds = []
     for perm in DataLoader(range(pos_test_edge.size(0)), batch_size):
         edge = pos_test_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
-        pos_test_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
+        edge = preprocessing_triples(edge, device)
+        pos_test_preds += [model.score(edge).squeeze().cpu()]
         
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
     neg_test_preds = []
     for perm in DataLoader(range(neg_test_edge.size(0)), batch_size):
         edge = neg_test_edge[perm]
-        edge = torch.cat(
-            [
-                edge[:, 0].unsqueeze(0),
-                torch.IntTensor([[0] * edge.size(0)]).to(device),
-                edge[:, 1].unsqueeze(0)
-            ],
-            axis=0
-        )
-        neg_test_preds += [torch.argmax(model(edge)[0], dim=1).squeeze().cpu()]
+        edge = preprocessing_triples(edge, device)
+        neg_test_preds += [model.score(edge).squeeze().cpu()]
         
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
@@ -214,15 +186,6 @@ def main():
                 wandb_logs = {
                     "epoch": epoch,
                     "train_loss": loss,
-                    "train_hits@10": None,
-                    "valid_hits@10": None,
-                    "test_hits@10": None,
-                    "train_hits@50": None,
-                    "valid_hits@50": None,
-                    "test_hits@50": None,
-                    "train_hits@100": None,
-                    "valid_hits@100": None,
-                    "test_hits@100": None,
                 }
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
