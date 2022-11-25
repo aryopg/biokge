@@ -173,7 +173,14 @@ def main():
     if not os.path.isdir(args.output_dir):
         os.mkdir(args.output_dir)
 
-    device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    if torch.cuda.is_available():
+        device = f"cuda:{args.device}"
+    else:
+        try:
+            if torch.backends.mps.is_available():
+                device = "mps"
+        except:
+            device = "cpu"
     device = torch.device(device)
 
     dataset = LinkPropPredDataset(name="ogbl-ppa")
