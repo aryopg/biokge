@@ -149,14 +149,14 @@ def main():
         os.mkdir(args.output_dir)
 
     wandb.init(project="kge_ppa", entity="aryopg")
-    wandb.config = {
+    wandb.config.update({
         "lr": args.lr,
         "reg_lambda": args.reg_lambda,
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "hidden_channels": args.hidden_channels,
         "dropout": args.dropout,
-    }
+    })
 
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     device = torch.device(device)
