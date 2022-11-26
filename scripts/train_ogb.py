@@ -148,6 +148,15 @@ def main():
     if not os.path.isdir(args.output_dir):
         os.mkdir(args.output_dir)
 
+    if torch.cuda.is_available():
+        device = f"cuda:{args.device}"
+    else:
+        try:
+            if torch.backends.mps.is_available():
+                device = "mps"
+        except:
+            device = "cpu"
+
     wandb.init(project="kge_ppa", entity="aryopg")
     wandb.config.update({
         "lr": args.lr,
