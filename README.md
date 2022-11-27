@@ -4,19 +4,23 @@
 
 ```
 conda update conda
-conda create -n kge_playground python=3.9
-conda activate kge_playground
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
-conda install -c conda-forge ogb wandb
+conda env create -f environment.yml
+```
+
+## Setup
+
+### WandB API Key
+
+If you have a WandB account:
+1. Ask for an invitation from Aryo to the project page;
+2. Check [your account settings](https://wandb.ai/settings) and copy your API key.
+
+```
+echo "WANDB_API_KEY=<YOUR WANDB API KEY>" > env/.env
 ```
 
 ## Example Training
 ```
 conda activate kge_playground
-python train_ogb.py \\
---hidden_channels=500 \\
---reg_lambda=1e-3 \\
---epochs=100 \\
---batch_size=1000 \\
---runs=1
+train_local.sh
 ```
