@@ -3,6 +3,10 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
+from dotenv import load_dotenv
+
+load_dotenv("env/.env")
+
 import torch
 from torch import nn
 import torch.nn.functional as F
