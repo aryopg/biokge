@@ -16,6 +16,7 @@ If you have a WandB account:
 2. Check [your account settings](https://wandb.ai/settings) and copy your API key.
 
 ```
+mkdir env
 echo "WANDB_API_KEY=<YOUR WANDB API KEY>" > env/.env
 ```
 
