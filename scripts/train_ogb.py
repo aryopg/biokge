@@ -23,11 +23,11 @@ from utils.logger import Logger
 from utils import common_utils
 
 
-def preprocessing_triples(edge, device):
+def preprocessing_triples(edge):
     subj = edge[:, 0].unsqueeze(0)
     obj = edge[:, 1].unsqueeze(0)
     return torch.cat(
-        [subj, torch.zeros_like(subj, device=device), obj],
+        [subj, torch.zeros_like(subj), obj],
         axis=0
     )
 
@@ -36,7 +36,7 @@ def preprocessing_triples(edge, device):
 def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
     model.train()
 
-    pos_train_edge = torch.from_numpy(split_edge["train"]["edge"]).to(device)
+    pos_train_edge = torch.from_numpy(split_edge["train"]["edge"])
 
     total_loss = total_examples = 0
     loss_fn = nn.CrossEntropyLoss()
@@ -44,7 +44,7 @@ def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
         optimizer.zero_grad()
         edge = pos_train_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
 
         predictions, factors = model(edge, score_rhs=True, score_lhs=True)
         # Right hand side loss
@@ -69,16 +69,16 @@ def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
 def test(model, split_edge, evaluator, batch_size, device):
     model.eval()
 
-    pos_train_edge = torch.from_numpy(split_edge["train"]["edge"]).to(device)
-    pos_valid_edge = torch.from_numpy(split_edge["valid"]["edge"]).to(device)
-    neg_valid_edge = torch.from_numpy(split_edge["valid"]["edge_neg"]).to(device)
-    pos_test_edge = torch.from_numpy(split_edge["test"]["edge"]).to(device)
-    neg_test_edge = torch.from_numpy(split_edge["test"]["edge_neg"]).to(device)
+    pos_train_edge = torch.from_numpy(split_edge["train"]["edge"])
+    pos_valid_edge = torch.from_numpy(split_edge["valid"]["edge"])
+    neg_valid_edge = torch.from_numpy(split_edge["valid"]["edge_neg"])
+    pos_test_edge = torch.from_numpy(split_edge["test"]["edge"])
+    neg_test_edge = torch.from_numpy(split_edge["test"]["edge_neg"])
 
     pos_train_preds = []
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size):
         edge = pos_train_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
         pos_train_preds += [model.score(edge).squeeze().cpu()]
         
     pos_train_pred = torch.cat(pos_train_preds, dim=0)
@@ -86,7 +86,7 @@ def test(model, split_edge, evaluator, batch_size, device):
     pos_valid_preds = []
     for perm in DataLoader(range(pos_valid_edge.size(0)), batch_size):
         edge = pos_valid_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
         pos_valid_preds += [model.score(edge).squeeze().cpu()]
         
     pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
@@ -94,7 +94,7 @@ def test(model, split_edge, evaluator, batch_size, device):
     neg_valid_preds = []
     for perm in DataLoader(range(neg_valid_edge.size(0)), batch_size):
         edge = neg_valid_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
         neg_valid_preds += [model.score(edge).squeeze().cpu()]
         
     neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
@@ -102,7 +102,7 @@ def test(model, split_edge, evaluator, batch_size, device):
     pos_test_preds = []
     for perm in DataLoader(range(pos_test_edge.size(0)), batch_size):
         edge = pos_test_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
         pos_test_preds += [model.score(edge).squeeze().cpu()]
         
     pos_test_pred = torch.cat(pos_test_preds, dim=0)
@@ -110,7 +110,7 @@ def test(model, split_edge, evaluator, batch_size, device):
     neg_test_preds = []
     for perm in DataLoader(range(neg_test_edge.size(0)), batch_size):
         edge = neg_test_edge[perm]
-        edge = preprocessing_triples(edge, device)
+        edge = preprocessing_triples(edge).to(device)
         neg_test_preds += [model.score(edge).squeeze().cpu()]
         
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
