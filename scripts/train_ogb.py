@@ -20,6 +20,7 @@ from models.complex import ComplEx
 from models.regularizers import N3
 
 from utils.logger import Logger
+from utils import common_utils
 
 
 def preprocessing_triples(edge, device):
@@ -146,6 +147,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--eval_steps", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
     print(args)
@@ -169,10 +171,13 @@ def main():
         "batch_size": args.batch_size,
         "hidden_channels": args.hidden_channels,
         "dropout": args.dropout,
+        "random_seed": args.random_seed
     })
 
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     device = torch.device(device)
+
+    common_utils.set_random_seed(args.random_seed)
 
     dataset = LinkPropPredDataset(name="ogbl-ppa")
     split_edge = dataset.get_edge_split()
@@ -187,6 +192,9 @@ def main():
 
     for run in range(args.runs):
         model = ComplEx(data["num_nodes"], args.hidden_channels).to(device)
+        wandb.config.update({
+            "num_parameters": common_utils.count_parameters(model)
+        })
         optimizer = torch.optim.Adagrad(list(model.parameters()), lr=args.lr)
 
         for epoch in range(1, 1 + args.epochs):
