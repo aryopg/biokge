@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv("env/.env")
 
+from datetime import datetime
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -33,16 +35,16 @@ def preprocessing_triples(edge):
 
 
 
-def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
+def train(model, split_edge, optimizer, batch_size, n3_lambda, grad_accumulation_step, device):
     model.train()
 
     pos_train_edge = torch.from_numpy(split_edge["train"]["edge"])
 
     total_loss = total_examples = 0
     loss_fn = nn.CrossEntropyLoss()
-    regularizer = N3(reg_lambda)
+    regularizer = N3(n3_lambda)
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
-        optimizer.zero_grad()
+        
         edge = pos_train_edge[perm]
         edge = preprocessing_triples(edge).to(device)
 
@@ -55,12 +57,16 @@ def train(model, split_edge, optimizer, batch_size, reg_lambda, device):
         loss_reg, loss_reg_raw, avg_lmbda = regularizer.penalty(factors)
 
         loss = loss_fit + loss_reg
-        loss.backward()
-        optimizer.step()
-
+        
         num_examples = predictions[0].size(0)
         total_loss += loss.item() * num_examples
         total_examples += num_examples
+        
+        loss = loss / grad_accumulation_step
+        loss.backward()
+        if (perm + 1) % grad_accumulation_step == 0:
+            optimizer.step()
+            optimizer.zero_grad()
 
     return total_loss / total_examples
 
@@ -139,20 +145,31 @@ def test(model, split_edge, evaluator, batch_size, device):
 def main():
     parser = argparse.ArgumentParser(description="OGBL-PPA (MF)")
     parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--model_type", type=str, default="complex")
     parser.add_argument("--hidden_channels", type=int, default=256)
+    parser.add_argument("--n3_lambda", type=float, default=1e-3)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=0.1)
-    parser.add_argument("--reg_lambda", type=float, default=1e-3)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--eval_steps", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--grad_accumulation_step", type=int, default=1)
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--runs", type=int, default=1)
     args = parser.parse_args()
+
+    # datetime object containing current date and time
+    now = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
+    
     print(args)
-    if not os.path.isdir(args.output_dir):
-        os.mkdir(args.output_dir)
+    output_dir = os.path.join(args.output_dir, now)
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
+
+    checkpoint_path = os.path.join(output_dir, "checkpoint")
+    if not os.path.isdir(checkpoint_path):
+        os.mkdir(checkpoint_path)
 
     if torch.cuda.is_available():
         device = f"cuda:{args.device}"
@@ -166,11 +183,13 @@ def main():
     wandb.init(project="kge_ppa", entity="aryopg")
     wandb.config.update({
         "lr": args.lr,
-        "reg_lambda": args.reg_lambda,
+        "model_type": args.model_type,
+        "hidden_channels": args.hidden_channels,
+        "n3_lambda": args.n3_lambda,
         "epochs": args.epochs,
         "batch_size": args.batch_size,
-        "hidden_channels": args.hidden_channels,
         "dropout": args.dropout,
+        "grad_accumulation_step": args.grad_accumulation_step,
         "random_seed": args.random_seed
     })
 
@@ -198,7 +217,7 @@ def main():
         optimizer = torch.optim.Adagrad(list(model.parameters()), lr=args.lr)
 
         for epoch in range(1, 1 + args.epochs):
-            loss = train(model, split_edge, optimizer, args.batch_size, args.reg_lambda, device)
+            loss = train(model, split_edge, optimizer, args.batch_size, args.n3_lambda, args.grad_accumulation_step, device)
 
             if epoch % args.eval_steps == 0:
                 results = test(model, split_edge, evaluator,
@@ -225,6 +244,13 @@ def main():
                             f"Valid: {100 * valid_hits:.2f}%, "
                             f"Test: {100 * test_hits:.2f}%")
                 wandb.log(wandb_logs)
+
+            torch.save({
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": loss,
+            }, checkpoint_path)
             wandb.watch(model)
 
         for key in loggers.keys():

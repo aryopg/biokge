@@ -1,14 +1,10 @@
 import torch
-from datetime import datetime
-
-# datetime object containing current date and time
-now = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
 
 class Logger(object):
     def __init__(self, runs, output_dir, info=None):
         self.info = info
-        self.output_file = f"{output_dir}/{now}_log.txt"
+        self.output_file = f"{output_dir}/log.txt"
         self.results = [[] for _ in range(runs)]
 
     def add_result(self, run, result):
