@@ -6,19 +6,20 @@ class F2(object):
         super(F2, self).__init__()
         self.lmbda = lmbda
 
-    def penalty(self, factors): #TODO: remove x
+    def penalty(self, factors):  # TODO: remove x
         norm, raw = 0, 0
         for f in factors:
-            raw += torch.sum(f ** 2)
-            norm += self.lmbda * torch.sum(f ** 2)
+            raw += torch.sum(f**2)
+            norm += self.lmbda * torch.sum(f**2)
         return norm / factors[0].shape[0], raw / factors[0].shape[0], self.lmbda
-    
+
     def checkpoint(self, regularizer_cache_path, epoch_id):
         if regularizer_cache_path is not None:
-            print('Save the regularizer at epoch {}'.format(epoch_id))
-            path = regularizer_cache_path + '{}.reg'.format(epoch_id)
+            print("Save the regularizer at epoch {}".format(epoch_id))
+            path = regularizer_cache_path + "{}.reg".format(epoch_id)
             torch.save(self.state_dict(), path)
-            print('Regularizer Checkpoint:{}'.format(path))
+            print("Regularizer Checkpoint:{}".format(path))
+
 
 class N3(object):
     def __init__(self, lmbda: float):
@@ -32,17 +33,13 @@ class N3(object):
         """
         norm, raw = 0, 0
         for f in factors:
-            raw += torch.sum(
-                torch.abs(f) ** 3
-            )
-            norm += self.lmbda * torch.sum(
-                torch.abs(f) ** 3
-            )
+            raw += torch.sum(torch.abs(f) ** 3)
+            norm += self.lmbda * torch.sum(torch.abs(f) ** 3)
         return norm / factors[0].shape[0], raw / factors[0].shape[0], self.lmbda
-    
+
     def checkpoint(self, regularizer_cache_path, epoch_id):
         if regularizer_cache_path is not None:
-            print('Save the regularizer at epoch {}'.format(epoch_id))
-            path = regularizer_cache_path + '{}.reg'.format(epoch_id)
+            print("Save the regularizer at epoch {}".format(epoch_id))
+            path = regularizer_cache_path + "{}.reg".format(epoch_id)
             torch.save(self.state_dict(), path)
-            print('Regularizer Checkpoint:{}'.format(path))
+            print("Regularizer Checkpoint:{}".format(path))

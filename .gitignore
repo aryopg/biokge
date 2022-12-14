@@ -163,6 +163,6 @@ data/
 dataset/
 
 wandb/
-output/
+outputs/
 
 .DS_Store
