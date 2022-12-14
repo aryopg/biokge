@@ -5,21 +5,25 @@ channels:
   - conda-forge
   - pyg
 dependencies:
+  - black=22.6.0=py39hca03da5_0
   - blas=2.116=openblas
   - blas-devel=3.9.0=16_osxarm64_openblas
   - bottleneck=1.3.5=py39heec5a64_0
   - brotlipy=0.7.0=py39h5161555_1001
   - bzip2=1.0.8=h620ffc9_4
-  - ca-certificates=2022.9.24=h4653dfc_0
-  - certifi=2022.9.24=pyhd8ed1ab_0
+  - ca-certificates=2022.10.11=hca03da5_0
+  - certifi=2022.9.24=py39hca03da5_0
   - cffi=1.15.1=py39h22df2f2_0
+  - cfgv=3.3.1=py39hca03da5_0
   - charset-normalizer=2.1.1=pyhd8ed1ab_0
   - click=8.1.3=unix_pyhd8ed1ab_2
   - colorama=0.4.6=pyhd8ed1ab_0
   - cryptography=38.0.1=py39h834c97f_0
+  - distlib=0.3.2=pyhd3eb1b0_0
   - docker-pycreds=0.4.0=py_0
   - ffmpeg=4.2.2=h04105a8_0
   - fftw=3.3.10=nompi_h3046061_4
+  - filelock=3.6.0=pyhd3eb1b0_0
   - freetype=2.12.1=h1192e45_0
   - future=0.18.2=pyhd8ed1ab_6
   - gettext=0.21.0=h826f4ad_0
@@ -29,7 +33,9 @@ dependencies:
   - gmp=6.2.1=hc377ac9_3
   - gnutls=3.6.15=h887c41c_0
   - icu=68.1=hc377ac9_0
+  - identify=2.5.5=py39hca03da5_0
   - idna=3.4=pyhd8ed1ab_0
+  - isort=5.9.3=pyhd3eb1b0_0
   - joblib=1.2.0=pyhd8ed1ab_0
   - jpeg=9e=h1a28f6b_0
   - lame=3.100=h1a28f6b_0
@@ -60,26 +66,32 @@ dependencies:
   - littleutils=0.2.2=py_0
   - llvm-openmp=15.0.5=h7cfbb63_0
   - lz4-c=1.9.3=hc377ac9_0
+  - mypy_extensions=0.4.3=py39hca03da5_1
   - ncurses=6.3=h1a28f6b_3
   - nettle=3.7.3=h84b5d62_1
   - ninja=1.11.0=hf86a087_0
+  - nodeenv=1.7.0=py39hca03da5_0
   - numexpr=2.8.4=py39h79ee842_0
   - numpy=1.23.4=py39h1398885_0
   - numpy-base=1.23.4=py39h90707a3_0
   - ogb=1.3.5=pyhd8ed1ab_0
   - openblas=0.3.21=openmp_hf78f355_3
   - openh264=1.8.0=h98b2900_0
-  - openssl=1.1.1s=h03a7124_0
+  - openssl=1.1.1s=h1a28f6b_0
   - outdated=0.2.2=pyhd8ed1ab_0
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.5.1=py39h78102c4_0
+  - pathspec=0.9.0=py39hca03da5_0
   - pathtools=0.1.2=py_1
   - pillow=9.2.0=py39h4d1bdd5_1
   - pip=22.2.2=py39hca03da5_0
+  - platformdirs=2.5.2=py39hca03da5_0
+  - pre-commit=2.20.0=py39hca03da5_0
   - promise=2.2.1=py_0
   - protobuf=3.20.1=py39hc377ac9_0
   - psutil=5.9.0=py39h1a28f6b_0
   - pycparser=2.21=pyhd8ed1ab_0
+  - pydantic=1.10.2=py39h1a28f6b_0
   - pyopenssl=22.1.0=pyhd8ed1ab_0
   - pyparsing=3.0.9=pyhd8ed1ab_0
   - pysocks=1.7.1=pyha2e5f31_6
@@ -103,6 +115,8 @@ dependencies:
   - sqlite=3.40.0=h7a7dc30_0
   - threadpoolctl=3.1.0=pyh8a188c0_0
   - tk=8.6.12=hb8d0fd4_0
+  - toml=0.10.2=pyhd3eb1b0_0
+  - tomli=2.0.1=py39hca03da5_0
   - torchaudio=0.13.0=py39_cpu
   - torchvision=0.14.0=py39_cpu
   - tqdm=4.64.1=pyhd8ed1ab_0
@@ -110,7 +124,9 @@ dependencies:
   - typing-extensions=4.4.0=hd8ed1ab_0
   - typing_extensions=4.4.0=pyha770c72_0
   - tzdata=2022f=h04d1e81_0
+  - ukkonen=1.0.1=py39h525c30c_0
   - urllib3=1.26.13=pyhd8ed1ab_0
+  - virtualenv=20.16.2=py39hca03da5_0
   - wandb=0.13.5=pyhd8ed1ab_0
   - wheel=0.37.1=pyhd3eb1b0_0
   - x264=1!152.20180806=h1a28f6b_0
