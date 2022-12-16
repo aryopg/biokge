@@ -118,7 +118,6 @@ class Trainer:
             if (iteration + 1) % self.configs.model_configs.grad_accumulation_step == 0:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-            break
 
         return total_loss / total_examples
 
@@ -155,7 +154,6 @@ class Trainer:
                 wandb.log(wandb_logs)
             wandb.watch(self.model)
             self.save_checkpoint(epoch, wandb_logs)
-            break
 
         for key in self.loggers.keys():
             self.loggers[key].save_statistics()
@@ -177,7 +175,6 @@ class Trainer:
             edge = pos_train_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
             pos_train_preds += [self.model.score(edge).squeeze().cpu()]
-            break
 
         pos_train_pred = torch.cat(pos_train_preds, dim=0)
 
@@ -188,7 +185,6 @@ class Trainer:
             edge = pos_valid_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
             pos_valid_preds += [self.model.score(edge).squeeze().cpu()]
-            break
 
         pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
 
@@ -199,7 +195,6 @@ class Trainer:
             edge = neg_valid_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
             neg_valid_preds += [self.model.score(edge).squeeze().cpu()]
-            break
 
         neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
 
@@ -210,7 +205,6 @@ class Trainer:
             edge = pos_test_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
             pos_test_preds += [self.model.score(edge).squeeze().cpu()]
-            break
 
         pos_test_pred = torch.cat(pos_test_preds, dim=0)
 
@@ -221,7 +215,6 @@ class Trainer:
             edge = neg_test_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
             neg_test_preds += [self.model.score(edge).squeeze().cpu()]
-            break
 
         neg_test_pred = torch.cat(neg_test_preds, dim=0)
 

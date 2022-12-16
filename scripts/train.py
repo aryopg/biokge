@@ -21,7 +21,7 @@ def argument_parser():
     parser = argparse.ArgumentParser(
         description="Protein Knowledge Graph Embedding Project"
     )
-    parser.add_argument("--config_filepath", type=str, default="configs/complex.yaml")
+    parser.add_argument("--config_filepath", type=str, required=True)
     args = parser.parse_args()
     return args
 
@@ -32,7 +32,7 @@ def main():
 
     common_utils.setup_random_seed(configs.training_configs.random_seed)
     outputs_dir, checkpoint_path = common_utils.setup_experiment_folder(
-        configs.training_configs.outputs_dir
+        os.path.join(os.getcwd, configs.training_configs.outputs_dir)
     )
     device = common_utils.setup_device(configs.training_configs.device)
 
@@ -64,6 +64,8 @@ def main():
             device,
         )
         trainer.train(split_edge)
+    elif configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
+        raise NotImplementedError
     else:
         raise NotImplementedError
 
