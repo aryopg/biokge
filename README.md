@@ -67,7 +67,7 @@ sh train_local.sh dsi-bdi-biokg
 
 This table acts as a guideline when choosing KGE architectures. The chosen architectures need to be able to treat the KG properties.
 
-| Name | #Entities | #Relations | #Triples | Directed | Symmetry | Inverse | Transitive | 1-to-N |
+| Name | #Entities | #Relation Types | #Triples | Directed | Symmetry | Inverse | Transitive | 1-to-N |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | BioKG | 105524 | 17 | 2067997 | Yes | Partial | Yes | Partial | Yes |
 | OGBL-BioKG | 45085 | 51 | 5088433 | Yes | Partial | Yes | Partial | Yes |
