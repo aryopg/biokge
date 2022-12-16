@@ -36,6 +36,14 @@ echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 sh train_local.sh
 
+OUTPUT_DIR=${SCRATCH_HOME}/kge-playground/outputs/
+OUTPUT_HOME=${PWD}/exps/
+mkdir -p ${OUTPUT_HOME}
+rsync --archive --update --compress --progress ${OUTPUT_DIR} ${OUTPUT_HOME}
+
+# Cleanup
+rm -rf ${OUTPUT_DIR}
+
 echo ""
 echo "============"
 echo "job finished successfully"
