@@ -6,7 +6,7 @@ model_configs:
   hidden_size: 500
   regularizers:
     - type: n3
-      coeff: 1e-2
+      coeff: 0.01
     - type: f2
       coeff: 0
   dropout: 0.0
@@ -14,10 +14,10 @@ model_configs:
   optimizer: "adagrad"
   learning_rate: 0.1
   loss_fn: "crossentropy"
-  grad_accumulation_step: 1
+  grad_accumulation_step: 10
 training_configs:
-  epochs: 20
-  eval_steps: 1
+  epochs: 40
+  eval_steps: 2
   device: 0
   random_seed: 1234
   outputs_dir: "outputs"

@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1  # use 1 GPU
 #SBATCH --mem=14000  # memory in Mb
 #SBATCH --partition=ILCC_GPU
-#SBATCH -t 4-00:00:00  # time requested in hour:minute:seconds
+#SBATCH -t 6-00:00:00  # time requested in hour:minute:seconds
 #SBATCH --cpus-per-task=4
 
 echo "Job running on ${SLURM_JOB_NODELIST}"

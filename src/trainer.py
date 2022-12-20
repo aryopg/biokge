@@ -116,6 +116,11 @@ class Trainer:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
+        # Check if the last training step was not optimized
+        if (iteration + 1) % self.grad_accumulation_step != 0:
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+
         return total_loss / total_examples
 
     def train(self, dataset, evaluator=None):
