@@ -9,7 +9,7 @@ model_configs:
       coeff: 1e-2
     - type: f2
       coeff: 0
-  dropout: 0.1
+  dropout: 0.0
   batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
