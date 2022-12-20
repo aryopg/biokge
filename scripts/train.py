@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv("env/.env")
 
-from ogb.linkproppred import LinkPropPredDataset
+from ogb.linkproppred import Evaluator, LinkPropPredDataset
 
 import wandb
 from src.configs import Configs
@@ -63,7 +63,9 @@ def main():
             loggers,
             device,
         )
-        trainer.train(split_edge)
+
+        evaluator = Evaluator(name="ogbl-ppa")
+        trainer.train(split_edge, evaluator)
     elif configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
         raise NotImplementedError
     else:

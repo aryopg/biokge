@@ -1,8 +1,6 @@
 from typing import Dict
 
 import torch
-import torch.nn.functional as F
-from ogb.linkproppred import Evaluator
 from torch import nn
 from torch.utils.data import DataLoader
 
@@ -39,8 +37,7 @@ class Trainer:
         self.optimizer = self.setup_optimizer(configs.model_configs.optimizer)
         self.loss_fn = self.setup_loss_function(configs.model_configs.loss_fn)
         self.regularizers = self.setup_regularizers(configs.model_configs.regularizers)
-
-        self.evaluator = Evaluator(name="ogbl-ppa")
+        self.grad_accumulation_step = configs.model_configs.grad_accumulation_step
 
         self.outputs_dir = outputs_dir
         self.checkpoint_path = checkpoint_path
@@ -113,20 +110,20 @@ class Trainer:
             total_loss += loss.item() * num_examples
             total_examples += num_examples
 
-            loss = loss / self.configs.model_configs.grad_accumulation_step
+            loss = loss / self.grad_accumulation_step
             loss.backward()
-            if (iteration + 1) % self.configs.model_configs.grad_accumulation_step == 0:
+            if (iteration + 1) % self.grad_accumulation_step == 0:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
         return total_loss / total_examples
 
-    def train(self, dataset):
+    def train(self, dataset, evaluator=None):
         for epoch in range(1, 1 + self.configs.training_configs.epochs):
             train_loss = self.training_step(dataset)
 
             if epoch % self.configs.training_configs.eval_steps == 0:
-                results = self.test(dataset)
+                results = self.test(dataset, evaluator)
 
                 wandb_logs = {
                     "epoch": epoch,
@@ -159,7 +156,7 @@ class Trainer:
             self.loggers[key].save_statistics()
 
     @torch.no_grad()
-    def test(self, dataset):
+    def test(self, dataset, evaluator):
         self.model.eval()
 
         pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
@@ -220,20 +217,20 @@ class Trainer:
 
         results = {}
         for K in [10, 50, 100]:
-            self.evaluator.K = K
-            train_hits = self.evaluator.eval(
+            evaluator.K = K
+            train_hits = evaluator.eval(
                 {
                     "y_pred_pos": pos_train_pred,
                     "y_pred_neg": neg_valid_pred,
                 }
             )[f"hits@{K}"]
-            valid_hits = self.evaluator.eval(
+            valid_hits = evaluator.eval(
                 {
                     "y_pred_pos": pos_valid_pred,
                     "y_pred_neg": neg_valid_pred,
                 }
             )[f"hits@{K}"]
-            test_hits = self.evaluator.eval(
+            test_hits = evaluator.eval(
                 {
                     "y_pred_pos": pos_test_pred,
                     "y_pred_neg": neg_test_pred,
