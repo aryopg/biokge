@@ -32,7 +32,7 @@ def main():
 
     common_utils.setup_random_seed(configs.training_configs.random_seed)
     outputs_dir, checkpoint_path = common_utils.setup_experiment_folder(
-        os.path.join(os.getcwd, configs.training_configs.outputs_dir)
+        os.path.join(os.getcwd(), configs.training_configs.outputs_dir)
     )
     device = common_utils.setup_device(configs.training_configs.device)
 
