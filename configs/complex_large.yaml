@@ -10,11 +10,11 @@ model_configs:
     - type: f2
       coeff: 0
   dropout: 0.0
-  batch_size: 50
+  batch_size: 100
   optimizer: "adagrad"
   learning_rate: 0.1
   loss_fn: "crossentropy"
-  grad_accumulation_step: 10
+  grad_accumulation_step: 1
 training_configs:
   epochs: 40
   eval_steps: 2
