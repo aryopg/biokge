@@ -65,11 +65,10 @@ class Trainer:
                 lr=self.configs.model_configs.learning_rate,
             )
 
-    def setup_regularizers(self, regularizer):
+    def setup_regularizers(self, regularizers_list):
         regularizers = []
-        for regularizer in regularizers:
-            if regularizer.coeff > 0:
-                regularizers += [REGULARIZER_MAP[regularizer.type](regularizer.coeff)]
+        for regularizer in regularizers_list:
+            regularizers += [REGULARIZER_MAP[regularizer.type](regularizer.coeff)]
         return regularizers
 
     def setup_loss_function(self, loss_fn):
