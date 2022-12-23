@@ -88,7 +88,7 @@ class Trainer:
 
         total_loss = 0
         total_examples = 0
-        for perm in train_data_loader:
+        for iteration, perm in enumerate(train_data_loader):
             edge = pos_train_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
 
@@ -104,13 +104,13 @@ class Trainer:
                 loss_regs += loss_reg
 
             loss = loss_fit + loss_regs
-            # loss = loss / self.grad_accumulation_step
+            loss = loss / self.grad_accumulation_step
             loss.backward()
-            # if ((iteration + 1) % self.grad_accumulation_step == 0) or (
-            #     (iteration + 1) == len(train_data_loader)
-            # ):
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+            if ((iteration + 1) % self.grad_accumulation_step == 0) or (
+                (iteration + 1) == len(train_data_loader)
+            ):
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
             num_examples = predictions[0].size(0)
             total_loss += loss.item() * num_examples
