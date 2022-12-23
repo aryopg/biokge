@@ -80,16 +80,15 @@ class Trainer:
         self.model.train()
 
         pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
+        train_data_loader = DataLoader(
+            range(pos_train_edge.size(0)),
+            self.configs.model_configs.batch_size,
+            shuffle=True,
+        )
 
         total_loss = 0
         total_examples = 0
-        for iteration, perm in enumerate(
-            DataLoader(
-                range(pos_train_edge.size(0)),
-                self.configs.model_configs.batch_size,
-                shuffle=True,
-            )
-        ):
+        for perm in train_data_loader:
             edge = pos_train_edge[perm]
             edge = self.preprocessing_triples(edge).to(self.device)
 
@@ -105,21 +104,17 @@ class Trainer:
                 loss_regs += loss_reg
 
             loss = loss_fit + loss_regs
+            # loss = loss / self.grad_accumulation_step
+            loss.backward()
+            # if ((iteration + 1) % self.grad_accumulation_step == 0) or (
+            #     (iteration + 1) == len(train_data_loader)
+            # ):
+            self.optimizer.step()
+            self.optimizer.zero_grad()
 
             num_examples = predictions[0].size(0)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
-
-            loss = loss / self.grad_accumulation_step
-            loss.backward()
-            if (iteration + 1) % self.grad_accumulation_step == 0:
-                self.optimizer.step()
-                self.optimizer.zero_grad()
-
-        # Check if the last training step was not optimized
-        if (iteration + 1) % self.grad_accumulation_step != 0:
-            self.optimizer.step()
-            self.optimizer.zero_grad()
 
         return total_loss / total_examples
 
