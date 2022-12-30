@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 from torch import nn
 
@@ -118,7 +120,16 @@ class ComplEx(nn.Module):
         else:
             return None
 
-    def get_factor(self, x):
+    def get_factor(self, x: torch.Tensor) -> list:
+        """
+        Retrieve the model factors wrt the input
+
+        Args:
+            x (torch.Tensor): Input tensor
+
+        Returns:
+            list: left hand side, relation, and right hand side factors
+        """
         lhs = self.entity_embeddings(x[0])
         rel = self.relation_embeddings(x[1])
         rhs = self.entity_embeddings(x[2])

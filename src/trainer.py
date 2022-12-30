@@ -1,6 +1,7 @@
-from typing import Dict
+from typing import Dict, List
 
 import torch
+from ogb.linkproppred import Evaluator
 from torch import nn
 from torch.utils.data import DataLoader
 
@@ -8,7 +9,7 @@ import wandb
 
 from .configs import Configs
 from .models.complex import ComplEx
-from .models.regularizers import F2, N3
+from .models.regularizers import F2, N3, Regularizer
 from .utils.logger import Logger
 
 REGULARIZER_MAP = {
@@ -28,6 +29,20 @@ class Trainer:
         loggers: Dict[str, Logger] = None,
         device: torch.device = None,
     ):
+        """
+        A python class that governs the training and testing process.
+
+        Args:
+            num_entities (int): Number of entities in the KG to initialize the model
+            num_relations (int): Number of relations in the KG to initialize the model
+            configs (Configs): Configurations of the training
+            outputs_dir (str): Directory that stores the training weights and logs
+            checkpoint_path (str): Path to the checkpoint directory
+            loggers (Dict[str, Logger], optional): Logger object to record the
+                training. Defaults to None.
+            device (torch.device, optional): The dedicated deviice used for
+                training. Defaults to None.
+        """
         self.configs = configs
         self.device = device
 
@@ -43,7 +58,21 @@ class Trainer:
         self.checkpoint_path = checkpoint_path
         self.loggers = loggers
 
-    def setup_model(self, num_entities: int, num_relations: int, model_configs: dict):
+    def setup_model(
+        self, num_entities: int, num_relations: int, model_configs: dict
+    ) -> nn.Module:
+        """
+        Setup model based on the model type, number of entities and relations
+        mentioned in the config file
+
+        Args:
+            num_entities (int): Number of entities in the KG
+            num_relations (int): Number of relations in the KG
+            model_configs (dict): Model configurations
+
+        Returns:
+            nn.Module: The KGE model to be trained
+        """
         if model_configs.model_type == "complex":
             return ComplEx(
                 num_entities,
@@ -53,7 +82,16 @@ class Trainer:
                 model_configs.init_size,
             ).to(self.device)
 
-    def setup_optimizer(self, optimizer):
+    def setup_optimizer(self, optimizer: str) -> torch.optim.Optimizer:
+        """
+        Setup optimizer based on the optimizer name
+
+        Args:
+            optimizer (str): optimizer name
+
+        Returns:
+            torch.optim.Optimizer: Optimizer class
+        """
         if optimizer == "adam":
             return torch.optim.Adam(
                 list(self.model.parameters()),
@@ -65,20 +103,53 @@ class Trainer:
                 lr=self.configs.model_configs.learning_rate,
             )
 
-    def setup_regularizers(self, regularizers_list):
+    def setup_regularizers(self, regularizers_list: List[dict]) -> List[Regularizer]:
+        """
+        Setup regularizers based on the regularizer names
+
+        Args:
+            regularizers_list (List[dict]): List of regularizer configs
+
+        Returns:
+            List[Regularizer]: List of regularizers that will be used
+        """
         regularizers = []
         for regularizer in regularizers_list:
             regularizers += [REGULARIZER_MAP[regularizer.type](regularizer.coeff)]
         return regularizers
 
-    def setup_loss_function(self, loss_fn):
+    def setup_loss_function(self, loss_fn: str) -> nn.Module:
+        """
+        Setup loss function based on the loss function name
+
+        Args:
+            loss_fn (str): loss function name
+
+        Returns:
+            nn.Module: Loss function
+        """
         if loss_fn == "crossentropy":
             return nn.CrossEntropyLoss()
 
-    def training_step(self, dataset):
+    def training_epoch(self, dataset) -> float:
+        """
+        Method that represents one training epoch (multiple training steps).
+        Currently designed only for OGB LinkPropPredDataset
+
+        Args:
+            dataset (tbd): Dataset object containing the triplets
+
+        Returns:
+            float: the averaged loss of the epoch
+        """
+
+        # Set model mode to train
         self.model.train()
 
+        # Retrieve all training triples
+        ## Convert to a torch tensor
         pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
+        ## Load to DataLoader for sampling
         train_data_loader = DataLoader(
             range(pos_train_edge.size(0)),
             self.configs.model_configs.batch_size,
@@ -88,29 +159,45 @@ class Trainer:
         total_loss = 0
         total_examples = 0
         for iteration, perm in enumerate(train_data_loader):
+            # Sample triplets
             edge = pos_train_edge[perm]
+
+            # Preprocess triples based on the dataset specification
             edge = self.preprocessing_triples(edge).to(self.device)
 
+            # Get right hand and left hand predictions (symmetry)
             predictions, factors = self.model(edge, score_rhs=True, score_lhs=True)
             # Right hand side loss
             rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
             # Left hand side loss
             lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
+
+            # Model loss is a summation of Right hand and Left hand losses
             loss_fit = rhs_loss_fit + lhs_loss_fit
+
+            # Compute regularizers losses
             loss_regs = 0
             for regularizer in self.regularizers:
-                loss_reg, loss_reg_raw, avg_lmbda = regularizer.penalty(factors)
+                loss_reg = regularizer.penalty(factors)
                 loss_regs += loss_reg
 
+            # Sum of model and regularizers losses
             loss = loss_fit + loss_regs
+
+            # Average by gradient accumulation step if any
             loss = loss / self.grad_accumulation_step
+
+            # Compute loss
             loss.backward()
+
+            # Run backprop if iteration falls on the gradient accumulation step
             if ((iteration + 1) % self.grad_accumulation_step == 0) or (
                 (iteration + 1) == len(train_data_loader)
             ):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
+            # Record epoch loss
             num_examples = predictions[0].size(0)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
@@ -119,7 +206,7 @@ class Trainer:
 
     def train(self, dataset, evaluator=None):
         for epoch in range(1, 1 + self.configs.training_configs.epochs):
-            train_loss = self.training_step(dataset)
+            train_loss = self.training_epoch(dataset)
 
             if epoch % self.configs.training_configs.eval_steps == 0:
                 results = self.test(dataset, evaluator)
@@ -155,98 +242,98 @@ class Trainer:
             self.loggers[key].save_statistics()
 
     @torch.no_grad()
-    def test(self, dataset, evaluator):
+    def test(self, dataset, evaluator: Evaluator) -> dict:
+        """
+        Test model performance.
+        This code is mostly adopted from the OGB Link Prediction codes.
+
+        Args:
+            dataset (tbd): Dataset of triples
+            evaluator (Evaluator): OGB evaluator class
+
+        Returns:
+            dict: Model metrics
+        """
+
+        def test_iteration(self, edge) -> torch.Tensor:
+            """Run inference on data batches"""
+            preds = []
+            for perm in DataLoader(
+                range(edge.size(0)), self.configs.model_configs.batch_size
+            ):
+                edge = edge[perm]
+                edge = self.preprocessing_triples(edge).to(self.device)
+                preds += [self.model.score(edge).squeeze().cpu()]
+
+            return torch.cat(preds, dim=0)
+
+        def hits_evaluation(y_pred_pos, y_pred_neg, K: int) -> float:
+            """Use OGB Evaluator to get the Hits metrics"""
+            evaluator.K = K
+            return evaluator.eval(
+                {
+                    "y_pred_pos": y_pred_pos,
+                    "y_pred_neg": y_pred_neg,
+                }
+            )[f"hits@{K}"]
+
+        # Set model mode to evaluation
         self.model.eval()
 
+        # Get all the triples with negative samples for validation and test data
         pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
         pos_valid_edge = torch.from_numpy(dataset["valid"]["edge"])
         neg_valid_edge = torch.from_numpy(dataset["valid"]["edge_neg"])
         pos_test_edge = torch.from_numpy(dataset["test"]["edge"])
         neg_test_edge = torch.from_numpy(dataset["test"]["edge_neg"])
 
-        pos_train_preds = []
-        for perm in DataLoader(
-            range(pos_train_edge.size(0)), self.configs.model_configs.batch_size
-        ):
-            edge = pos_train_edge[perm]
-            edge = self.preprocessing_triples(edge).to(self.device)
-            pos_train_preds += [self.model.score(edge).squeeze().cpu()]
+        # Run test iterations using the loaded triples
+        pos_train_pred = test_iteration(pos_train_edge)
+        pos_valid_pred = test_iteration(pos_valid_edge)
+        neg_valid_pred = test_iteration(neg_valid_edge)
+        pos_test_pred = test_iteration(pos_test_edge)
+        neg_test_pred = test_iteration(neg_test_edge)
 
-        pos_train_pred = torch.cat(pos_train_preds, dim=0)
-
-        pos_valid_preds = []
-        for perm in DataLoader(
-            range(pos_valid_edge.size(0)), self.configs.model_configs.batch_size
-        ):
-            edge = pos_valid_edge[perm]
-            edge = self.preprocessing_triples(edge).to(self.device)
-            pos_valid_preds += [self.model.score(edge).squeeze().cpu()]
-
-        pos_valid_pred = torch.cat(pos_valid_preds, dim=0)
-
-        neg_valid_preds = []
-        for perm in DataLoader(
-            range(neg_valid_edge.size(0)), self.configs.model_configs.batch_size
-        ):
-            edge = neg_valid_edge[perm]
-            edge = self.preprocessing_triples(edge).to(self.device)
-            neg_valid_preds += [self.model.score(edge).squeeze().cpu()]
-
-        neg_valid_pred = torch.cat(neg_valid_preds, dim=0)
-
-        pos_test_preds = []
-        for perm in DataLoader(
-            range(pos_test_edge.size(0)), self.configs.model_configs.batch_size
-        ):
-            edge = pos_test_edge[perm]
-            edge = self.preprocessing_triples(edge).to(self.device)
-            pos_test_preds += [self.model.score(edge).squeeze().cpu()]
-
-        pos_test_pred = torch.cat(pos_test_preds, dim=0)
-
-        neg_test_preds = []
-        for perm in DataLoader(
-            range(neg_test_edge.size(0)), self.configs.model_configs.batch_size
-        ):
-            edge = neg_test_edge[perm]
-            edge = self.preprocessing_triples(edge).to(self.device)
-            neg_test_preds += [self.model.score(edge).squeeze().cpu()]
-
-        neg_test_pred = torch.cat(neg_test_preds, dim=0)
-
+        # Calculate the results by comparing the inference of
+        # positive and negative samples
         results = {}
         for K in [10, 50, 100]:
-            evaluator.K = K
-            train_hits = evaluator.eval(
-                {
-                    "y_pred_pos": pos_train_pred,
-                    "y_pred_neg": neg_valid_pred,
-                }
-            )[f"hits@{K}"]
-            valid_hits = evaluator.eval(
-                {
-                    "y_pred_pos": pos_valid_pred,
-                    "y_pred_neg": neg_valid_pred,
-                }
-            )[f"hits@{K}"]
-            test_hits = evaluator.eval(
-                {
-                    "y_pred_pos": pos_test_pred,
-                    "y_pred_neg": neg_test_pred,
-                }
-            )[f"hits@{K}"]
+            train_hits = hits_evaluation(pos_train_pred, neg_valid_pred, K)
+            valid_hits = hits_evaluation(pos_valid_pred, neg_valid_pred, K)
+            test_hits = hits_evaluation(pos_test_pred, neg_test_pred, K)
 
             results[f"Hits@{K}"] = (train_hits, valid_hits, test_hits)
 
         return results
 
-    def preprocessing_triples(self, edge):
+    def preprocessing_triples(self, edge) -> torch.Tensor:
+        """
+        Preprocess triples based on the dataset.
+        OGBL-PPA does not provide relations within the triples,
+        but it only contains one type of relation.
+
+        Args:
+            edge (tbd): subject, predicate and object.
+                OGBL-PPA misses the predicate.
+
+        Returns:
+            torch.Tensor: Tensors of the triple (subject, predicate, object)
+        """
         if self.configs.dataset_configs.dataset_name == "ogbl-ppa":
             subj = edge[:, 0].unsqueeze(0)
             obj = edge[:, 1].unsqueeze(0)
+            # Assign zeros to represent the uniform predicates of OGBL-PPA
             return torch.cat([subj, torch.zeros_like(subj), obj], axis=0)
 
+    # TODO: save checkpoint of regularizers too
     def save_checkpoint(self, epoch: int, metrics: dict):
+        """
+        Save checkpoints of all training components
+
+        Args:
+            epoch (int): Current epoch
+            metrics (dict): Current metrics achieved by the model
+        """
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": self.model.state_dict(),
