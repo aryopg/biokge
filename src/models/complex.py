@@ -18,9 +18,7 @@ class ComplEx(nn.Module):
         self.rank = rank
 
         self.entity_embeddings = nn.Embedding(entity_size, 2 * rank)
-        self.relation_embeddings = nn.Embedding(
-            relation_size, 2 * rank
-        )  # Only one type of relation
+        self.relation_embeddings = nn.Embedding(relation_size, 2 * rank)
 
         self.init_weights(init_range, init_size)
 
@@ -57,6 +55,7 @@ class ComplEx(nn.Module):
         rel = self.relation_embeddings(x[1])
         rhs = self.entity_embeddings(x[2])
 
+        # Get real and imaginary embeddings
         lhs = lhs[:, : self.rank], lhs[:, self.rank :]
         rel = rel[:, : self.rank], rel[:, self.rank :]
         rhs = rhs[:, : self.rank], rhs[:, self.rank :]
@@ -102,7 +101,13 @@ class ComplEx(nn.Module):
 
             lhs_scores = lhs_score_real + lhs_score_img
 
-        factors = self.get_factor(x)
+        # Retrieve the model factors wrt the input
+        factors = (
+            torch.sqrt(lhs[0] ** 2 + lhs[1] ** 2),  # left hand side factors
+            torch.sqrt(rel[0] ** 2 + rel[1] ** 2),  # relation factors
+            torch.sqrt(rhs[0] ** 2 + rhs[1] ** 2),  # right hand side factors
+        )
+
         if score_rhs and score_rel and score_lhs:
             return (rhs_scores, rel_scores, lhs_scores), factors
         elif score_rhs and score_rel:
@@ -119,25 +124,3 @@ class ComplEx(nn.Module):
             return lhs_scores, factors
         else:
             return None
-
-    def get_factor(self, x: torch.Tensor) -> list:
-        """
-        Retrieve the model factors wrt the input
-
-        Args:
-            x (torch.Tensor): Input tensor
-
-        Returns:
-            list: left hand side, relation, and right hand side factors
-        """
-        lhs = self.entity_embeddings(x[0])
-        rel = self.relation_embeddings(x[1])
-        rhs = self.entity_embeddings(x[2])
-        lhs = lhs[:, : self.rank], lhs[:, self.rank :]
-        rel = rel[:, : self.rank], rel[:, self.rank :]
-        rhs = rhs[:, : self.rank], rhs[:, self.rank :]
-        return (
-            torch.sqrt(lhs[0] ** 2 + lhs[1] ** 2),
-            torch.sqrt(rel[0] ** 2 + rel[1] ** 2),
-            torch.sqrt(rhs[0] ** 2 + rhs[1] ** 2),
-        )
