@@ -36,7 +36,7 @@ def main():
     )
     device = common_utils.setup_device(configs.training_configs.device)
 
-    wandb.init(project="kge_ppa", entity="aryopg")
+    wandb.init(project="kge_ppa", entity="protein-kge")
     wandb.config.update(configs.dict())
 
     if configs.dataset_configs.dataset_name == "ogbl-ppa":
