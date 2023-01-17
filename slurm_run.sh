@@ -27,15 +27,15 @@ echo "Activating conda environment: ${CONDA_ENV_NAME}"
 conda activate ${CONDA_ENV_NAME}
 
 echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
-src_path=/home/${USER}/kge-playground/dataset/ogbl_ppa
-dest_path=${SCRATCH_HOME}/kge-playground/dataset/ogbl_ppa
+src_path=/home/${USER}/kge-playground/datasets/$1
+dest_path=${SCRATCH_HOME}/kge-playground/datasets/$1
 mkdir -p ${dest_path}  # make it if required
 rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 
 echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 python scripts/train.py \
---config_filepath=$1
+--config_filepath=$2
 
 OUTPUT_DIR=${SCRATCH_HOME}/kge-playground/outputs/
 OUTPUT_HOME=${PWD}/exps/
