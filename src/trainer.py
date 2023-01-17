@@ -148,7 +148,11 @@ class Trainer:
 
         # Retrieve all training triples
         ## Convert to a torch tensor
-        pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
+        if self.configs.dataset_configs.dataset_name == "ogbl-ppa":
+            pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
+        elif self.configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
+            pos_train_edge = torch.from_numpy(dataset["train"])
+
         ## Load to DataLoader for sampling
         train_data_loader = DataLoader(
             range(pos_train_edge.size(0)),
@@ -324,6 +328,11 @@ class Trainer:
             obj = edge[:, 1].unsqueeze(0)
             # Assign zeros to represent the uniform predicates of OGBL-PPA
             return torch.cat([subj, torch.zeros_like(subj), obj], axis=0)
+        elif self.configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
+            subj = edge[:, 0].unsqueeze(0)
+            relation = edge[:, 1].unsqueeze(0)
+            obj = edge[:, 2].unsqueeze(0)
+            return torch.cat([subj, relation, obj], axis=0)
 
     # TODO: save checkpoint of regularizers too
     def save_checkpoint(self, epoch: int, metrics: dict):

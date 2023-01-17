@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class DatasetConfigs(BaseModel):
     dataset_name: str
-    dataset_dir: Optional[str]
+    datasets_dir: Optional[str]
 
 
 class RegularizerConfigs(BaseModel):
