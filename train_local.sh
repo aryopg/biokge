@@ -2,6 +2,6 @@
 echo "Training Starting..."
 
 python scripts/train.py \
---config_filepath=configs/complex_small.yaml
+--config_filepath=configs/complex_base_biokg.yaml
 
 echo "Training Finished!!!"
