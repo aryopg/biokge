@@ -4,11 +4,11 @@
 #SBATCH -N 1	  # nodes requested
 #SBATCH -n 1	  # tasks requested
 #SBATCH --gres=gpu:1  # use 1 GPU
-#SBATCH --mem=14000  # memory in Mb
-#SBATCH --partition=ampere
+#SBATCH --mem=20000  # memory in Mb
+#SBATCH --partition=pascal
 #SBATCH --account=BMAI-CDT-SL2-GPU
-#SBATCH -t 6-00:00:00  # time requested in hour:minute:seconds
-#SBATCH --cpus-per-task=4
+#SBATCH -t 7-00:00:00  # time requested in hour:minute:seconds
+#SBATCH --cpus-per-task=3
 
 echo "Job running on ${SLURM_JOB_NODELIST}"
 
@@ -28,8 +28,8 @@ echo "Activating conda environment: ${CONDA_ENV_NAME}"
 conda activate ${CONDA_ENV_NAME}
 
 echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
-src_path=/home/${USER}/kge-playground/dataset/ogbl_ppa
-dest_path=${SCRATCH_HOME}/kge-playground/dataset/ogbl_ppa
+src_path=/home/${USER}/kge-playground/datasets/biokg
+dest_path=${SCRATCH_HOME}/kge-playground/datasets/biokg
 mkdir -p ${dest_path}  # make it if required
 rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 
