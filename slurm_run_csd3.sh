@@ -5,10 +5,14 @@
 #SBATCH -n 1	  # tasks requested
 #SBATCH --gres=gpu:1  # use 1 GPU
 #SBATCH --mem=20000  # memory in Mb
-#SBATCH --partition=pascal
+#SBATCH --partition=ampere
 #SBATCH --account=BMAI-CDT-SL2-GPU
-#SBATCH -t 7-00:00:00  # time requested in hour:minute:seconds
+#SBATCH -t 24:00:00  # time requested in hour:minute:seconds
 #SBATCH --cpus-per-task=3
+
+module load miniconda/3
+source .bashrc
+conda init
 
 echo "Job running on ${SLURM_JOB_NODELIST}"
 
@@ -16,15 +20,16 @@ dt=$(date '+%d/%m/%Y %H:%M:%S')
 echo "Job started: $dt"
 
 echo "Setting up bash enviroment"
-source ~/.bashrc
+source .bashrc
 set -e
-SCRATCH_DISK=/disk/scratch
-SCRATCH_HOME=${SCRATCH_DISK}/${USER}
+SCRATCH_DISK=/rds/user/
+SCRATCH_HOME=${SCRATCH_DISK}/${USER}/hpc-work
 mkdir -p ${SCRATCH_HOME}
 
 # Activate your conda environment
 CONDA_ENV_NAME=kge_playground
 echo "Activating conda environment: ${CONDA_ENV_NAME}"
+conda env create -f environment.yml
 conda activate ${CONDA_ENV_NAME}
 
 echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
@@ -37,6 +42,7 @@ echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 python scripts/train.py \
 --config_filepath=$1
+--log_to_wandb
 
 OUTPUT_DIR=${SCRATCH_HOME}/kge-playground/outputs/
 OUTPUT_HOME=${PWD}/exps/
