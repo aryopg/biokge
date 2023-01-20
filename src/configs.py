@@ -6,6 +6,9 @@ from pydantic import BaseModel
 class DatasetConfigs(BaseModel):
     dataset_name: str
     datasets_dir: Optional[str]
+    train_frac: float
+    valid_frac: float
+    neg_sampling_strat: str
 
 
 class RegularizerConfigs(BaseModel):

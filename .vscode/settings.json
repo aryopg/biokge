@@ -5,7 +5,9 @@
             "source.organizeImports": true
         }
     },
- 
     "python.formatting.provider": "black",
-    "isort.args": ["--profile", "black"]
+    "isort.args": [
+        "--profile",
+        "black"
+    ]
 }

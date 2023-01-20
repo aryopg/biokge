@@ -1,6 +1,9 @@
 dataset_configs:
   dataset_name: "dsi-bdi-biokg"
-  datasets_dir: "datasets/biokg/data"
+  datasets_dir: "datasets/biokg"
+  train_frac: 0.8
+  valid_frac: 0.1
+  neg_sampling_strat: "bernoulli"
 model_configs:
   model_type: "complex"
   hidden_size: 256

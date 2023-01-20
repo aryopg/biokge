@@ -38,7 +38,11 @@ def main():
     )
     device = common_utils.setup_device(configs.training_configs.device)
 
-    wandb.init(project="kge_ppa", entity="protein-kge", mode="enabled" if args.log_to_wandb else "disabled")
+    wandb.init(
+        project="kge_ppa",
+        entity="protein-kge",
+        mode="enabled" if args.log_to_wandb else "disabled",
+    )
     wandb.config.update(configs.dict())
 
     if configs.dataset_configs.dataset_name == "ogbl-ppa":
@@ -70,7 +74,6 @@ def main():
         trainer.train(split_edge, evaluator)
     elif configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
         dataset = BioKGDataset(configs.dataset_configs)
-        split_edge = dataset.get_edge_split()
         data_stats = {
             "num_entities": dataset.num_entities,
             "num_relations": dataset.num_relations,
@@ -93,7 +96,7 @@ def main():
         )
 
         evaluator = Evaluator(name="ogbl-ppa")
-        trainer.train(split_edge, evaluator)
+        trainer.train(dataset, evaluator)
         raise NotImplementedError
     else:
         raise NotImplementedError

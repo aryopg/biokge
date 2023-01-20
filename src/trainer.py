@@ -148,10 +148,10 @@ class Trainer:
 
         # Retrieve all training triples
         ## Convert to a torch tensor
-        if self.configs.dataset_configs.dataset_name == "ogbl-ppa":
+        if dataset.name == "ogbl-ppa":
             pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
-        elif self.configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
-            pos_train_edge = torch.from_numpy(dataset["train"])
+        elif dataset.name == "dsi-bdi-biokg":
+            pos_train_edge = torch.from_numpy(dataset.train)
 
         ## Load to DataLoader for sampling
         train_data_loader = DataLoader(
@@ -220,7 +220,8 @@ class Trainer:
                     "train_loss": train_loss,
                 }
                 for key, result in results.items():
-                    self.loggers[key].add_result(result)
+                    if key in self.loggers:
+                        self.loggers[key].add_result(result)
                     train_hits, valid_hits, test_hits = result
                     wandb_logs.update(
                         {
@@ -259,15 +260,15 @@ class Trainer:
             dict: Model metrics
         """
 
-        def test_iteration(self, edge) -> torch.Tensor:
+        def test_iteration(edge) -> torch.Tensor:
             """Run inference on data batches"""
             preds = []
             for perm in DataLoader(
                 range(edge.size(0)), self.configs.model_configs.batch_size
             ):
-                edge = edge[perm]
-                edge = self.preprocessing_triples(edge).to(self.device)
-                preds += [self.model.score(edge).squeeze().cpu()]
+                perm_edge = edge[perm]
+                perm_edge = self.preprocessing_triples(perm_edge).to(self.device)
+                preds += [self.model.score(perm_edge).squeeze().cpu()]
 
             return torch.cat(preds, dim=0)
 
@@ -284,29 +285,51 @@ class Trainer:
         # Set model mode to evaluation
         self.model.eval()
 
-        # Get all the triples with negative samples for validation and test data
-        pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
-        pos_valid_edge = torch.from_numpy(dataset["valid"]["edge"])
-        neg_valid_edge = torch.from_numpy(dataset["valid"]["edge_neg"])
-        pos_test_edge = torch.from_numpy(dataset["test"]["edge"])
-        neg_test_edge = torch.from_numpy(dataset["test"]["edge_neg"])
+        # Loop over predicates and collect metrics
+        results = {"Hits@10": (0, 0, 0), "Hits@50": (0, 0, 0), "Hits@100": (0, 0, 0)}
+        for relation_name, relation in dataset.relation_voc.items():
 
-        # Run test iterations using the loaded triples
-        pos_train_pred = test_iteration(pos_train_edge)
-        pos_valid_pred = test_iteration(pos_valid_edge)
-        neg_valid_pred = test_iteration(neg_valid_edge)
-        pos_test_pred = test_iteration(pos_test_edge)
-        neg_test_pred = test_iteration(neg_test_edge)
+            # Get all the triples with negative samples for validation and test data
+            pos_train_edge = torch.from_numpy(dataset.train_separated[relation])
+            pos_valid_edge = torch.from_numpy(dataset.valid[relation])
+            neg_valid_edge = torch.from_numpy(dataset.valid_negs[relation])
+            pos_test_edge = torch.from_numpy(dataset.test[relation])
+            neg_test_edge = torch.from_numpy(dataset.test_negs[relation])
 
-        # Calculate the results by comparing the inference of
-        # positive and negative samples
-        results = {}
-        for K in [10, 50, 100]:
-            train_hits = hits_evaluation(pos_train_pred, neg_valid_pred, K)
-            valid_hits = hits_evaluation(pos_valid_pred, neg_valid_pred, K)
-            test_hits = hits_evaluation(pos_test_pred, neg_test_pred, K)
+            # Run test iterations using the loaded triples
+            pos_train_pred = test_iteration(pos_train_edge)
+            pos_valid_pred = test_iteration(pos_valid_edge)
+            neg_valid_pred = test_iteration(neg_valid_edge)
+            pos_test_pred = test_iteration(pos_test_edge)
+            neg_test_pred = test_iteration(neg_test_edge)
 
-            results[f"Hits@{K}"] = (train_hits, valid_hits, test_hits)
+            # Calculate the results by comparing the inference of
+            # positive and negative samples
+            for K in [10, 50, 100]:
+                train_hits = hits_evaluation(pos_train_pred, neg_valid_pred, K)
+                valid_hits = hits_evaluation(pos_valid_pred, neg_valid_pred, K)
+                test_hits = hits_evaluation(pos_test_pred, neg_test_pred, K)
+
+                results[f"Hits@{K}_{relation_name}"] = (
+                    train_hits,
+                    valid_hits,
+                    test_hits,
+                )
+
+                # Keep track of unseparated metrics as well: weighted average
+                results[f"Hits@{K}"] = [
+                    avg + ((weight * metric) / normaliser)
+                    for avg, metric, weight, normaliser in zip(
+                        results[f"Hits@{K}"],
+                        results[f"Hits@{K}_{relation_name}"],
+                        (len(pos_train_pred), len(pos_valid_pred), len(pos_test_pred)),
+                        (
+                            dataset.num_train_entries,
+                            dataset.num_valid_entries,
+                            dataset.num_test_entries,
+                        ),
+                    )
+                ]
 
         return results
 
