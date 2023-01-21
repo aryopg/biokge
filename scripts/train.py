@@ -23,7 +23,7 @@ def argument_parser():
         description="Protein Knowledge Graph Embedding Project"
     )
     parser.add_argument("--config_filepath", type=str, required=True)
-    parser.add_argument("--log_to_wandb", action="store_true", required=False)
+    parser.add_argument("--log_to_wandb", action="store_true")
     args = parser.parse_args()
     return args
 
