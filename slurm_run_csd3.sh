@@ -10,8 +10,12 @@
 #SBATCH -t 24:00:00  # time requested in hour:minute:seconds
 #SBATCH --cpus-per-task=3
 
-module load miniconda/3
-source .bashrc
+module add miniconda/3
+module add cuda/11.0  # avoids compatibility complaint
+module add cudnn/8.1_cuda-11.2
+module add cuda/11.2
+module add git-2.14.1-gcc-5.4.0-acb553e
+source ~/.bashrc
 conda init
 
 echo "Job running on ${SLURM_JOB_NODELIST}"
@@ -20,7 +24,7 @@ dt=$(date '+%d/%m/%Y %H:%M:%S')
 echo "Job started: $dt"
 
 echo "Setting up bash enviroment"
-source .bashrc
+source ~/.bashrc
 set -e
 SCRATCH_DISK=/rds/user/
 SCRATCH_HOME=${SCRATCH_DISK}/${USER}/hpc-work
@@ -28,9 +32,11 @@ mkdir -p ${SCRATCH_HOME}
 
 # Activate your conda environment
 CONDA_ENV_NAME=kge_playground
-echo "Activating conda environment: ${CONDA_ENV_NAME}"
-conda env create -f environment.yml
+echo "Setting up conda environment: ${CONDA_ENV_NAME}"
+conda create --name ${CONDA_ENV_NAME} python=3.9
 conda activate ${CONDA_ENV_NAME}
+conda install -y -c conda-forge ogb wandb python-dotenv pre-commit black isort pydantic
+conda install -y -c pytorch -c nvidia torchaudio torchvision cudatoolkit=11.0 pytorch=1.12
 
 echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
 src_path=/home/${USER}/kge-playground/datasets/biokg
