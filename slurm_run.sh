@@ -36,6 +36,7 @@ echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 python scripts/train.py \
 --config_filepath=$2
+--log_to_wandb
 
 OUTPUT_DIR=${SCRATCH_HOME}/kge-playground/outputs/
 OUTPUT_HOME=${PWD}/exps/
