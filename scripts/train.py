@@ -97,7 +97,6 @@ def main():
 
         evaluator = Evaluator(name="ogbl-ppa")
         trainer.train(dataset, evaluator)
-        raise NotImplementedError
     else:
         raise NotImplementedError
 
