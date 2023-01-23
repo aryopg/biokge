@@ -52,6 +52,9 @@ class BioKGDataset:
         self.relation_voc = {
             relation: idx for relation, idx in zip(relations, range(len(relations)))
         }
+        self.reverse_relation_voc = {
+            idx: relation for relation, idx in zip(relations, range(len(relations)))
+        }
         self.links["relation"] = self.links["relation"].apply(
             lambda relation: self.relation_voc[relation]
         )
@@ -61,6 +64,9 @@ class BioKGDataset:
         entities = pandas.concat([self.links["subject"], self.links["object"]]).unique()
         self.entity_voc = {
             entity: idx for entity, idx in zip(entities, range(len(entities)))
+        }
+        self.reverse_entity_voc = {
+            idx: entity for entity, idx in zip(entities, range(len(entities)))
         }
         self.links["subject"] = self.links["subject"].apply(
             lambda entity: self.entity_voc[entity]
@@ -193,7 +199,6 @@ class BioKGDataset:
         Returns:
         - negative samples (numpy, (N,3))
         """
-
         n_neg = math.ceil(
             100 / len(triples)
         )  # calculate specific number of negatives to generate, ensuring at least 100
@@ -221,40 +226,172 @@ class BioKGDataset:
             ]
         ).T
 
-    def plot_edge_distribution(self, save=False):
+    def plot_statistics(self, save_location):
         """
-        Plot relation type distribution
+        Plot pos/neg/false neg count per relation
 
-        - save (string): path to figure if saving, starts in cwd
+        Args:
+        - save_location (path): path used to store fig pdf
         """
-        counts = self.links["relation"].value_counts()
+
+        # Positives
+        pos_counts = self.links["relation"].value_counts()
+        pos_counts = {
+            relation: count
+            for relation, count in zip(pos_counts.index.values, pos_counts.values)
+        }
+
+        # Validation negatives
+        valid_negs_counts = dict(
+            sorted(
+                {
+                    relation: len(negs) for relation, negs in self.valid_negs.items()
+                }.items(),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+        )
+
+        # False validation negatives
+        valid_false_negs_counts = {
+            relation: len(
+                set(
+                    [
+                        tuple(x)
+                        for x in self.links[
+                            self.links["relation"] == relation
+                        ].to_numpy()
+                    ]
+                )
+                & set([tuple(x) for x in self.valid_negs[relation]])
+            )
+            for relation in valid_negs_counts.keys()
+        }
+
+        # Test negatives
+        test_negs_counts = dict(
+            sorted(
+                {
+                    relation: len(negs) for relation, negs in self.test_negs.items()
+                }.items(),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+        )
+
+        # False test negatives
+        test_false_negs_counts = {
+            relation: len(
+                set(
+                    [
+                        tuple(x)
+                        for x in self.links[
+                            self.links["relation"] == relation
+                        ].to_numpy()
+                    ]
+                )
+                & set([tuple(x) for x in self.test_negs[relation]])
+            )
+            for relation in test_negs_counts.keys()
+        }
+
+        ### Plot
+        fig, ax = matplotlib.pyplot.subplots()
+        x = numpy.arange(len(self.relation_voc.keys()))
+
+        # Positives
+        ax.bar(x, pos_counts.values(), width=0.25, color="r", label="P")
+
+        # Validation negatives
+        ax.bar(
+            x + 0.25,
+            valid_negs_counts.values(),
+            width=0.25,
+            color="seagreen",
+            label="N valid",
+        )
+        ax.bar(
+            x + 0.25,
+            valid_false_negs_counts.values(),
+            width=0.25,
+            color="lime",
+            label="FN valid",
+        )
+
+        # Test negatives
+        ax.bar(
+            x + 0.25 * 2,
+            test_negs_counts.values(),
+            width=0.25,
+            color="lightsteelblue",
+            label="N test",
+        )
+        ax.bar(
+            x + 0.25 * 2,
+            test_false_negs_counts.values(),
+            width=0.25,
+            color="blue",
+            label="FN test",
+        )
+
+        ax.legend()
+        matplotlib.pyplot.xlabel("Relation")
+        matplotlib.pyplot.xticks(
+            x + 0.25,
+            [self.reverse_relation_voc[relation] for relation in pos_counts.keys()],
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor",
+        )
+        matplotlib.pyplot.ylabel("Count (log)")
+        matplotlib.pyplot.yscale("log")
+
+        # Save
+        fig.savefig(
+            save_location,
+            format="pdf",
+            bbox_inches="tight",
+        )
+
+    def plot_neg_counts(self, save_location, type="valid"):
+        """
+        Plot negative count per relation
+
+        Args:
+        - save_location (path): path used to store fig pdf
+        - type (str): valid or test, which negs to plot
+        """
+        negs_per_relation = getattr(self, type + "_negs")
+        counts = [len(negs) for negs in negs_per_relation.values()]
 
         # Plot
         fig, ax = matplotlib.pyplot.subplots()
-        counts.plot(ax=ax, kind="bar")
+        ax.bar(
+            [
+                self.reverse_relation_voc[relation]
+                for relation in negs_per_relation.keys()
+            ],
+            counts,
+        )
         upper_bound = 60e3
-        matplotlib.pyplot.xlabel("relation")
+        matplotlib.pyplot.xlabel("Relation")
         matplotlib.pyplot.xticks(rotation=45, ha="right", rotation_mode="anchor")
         matplotlib.pyplot.ylabel("Count")
         matplotlib.pyplot.ylim(0, upper_bound)
-        matplotlib.pyplot.title("relation distribution")
+        matplotlib.pyplot.title("Negatives")
 
         # Add counts in bars
-        for bar in range(len(counts)):
+        for idx, relation in enumerate(counts.index):
             matplotlib.pyplot.text(
-                bar, upper_bound / 2, counts[bar], rotation=90, ha="center"
+                idx, upper_bound / 2, counts[relation], rotation=90, ha="center"
             )
-
-        # Show
-        matplotlib.pyplot.show()
 
         # Save
-        if save:
-            fig.savefig(
-                os.path.join(os.getcwd(), save + ".pdf"),
-                format="pdf",
-                bbox_inches="tight",
-            )
+        fig.savefig(
+            save_location,
+            format="pdf",
+            bbox_inches="tight",
+        )
 
     def __getitem__(self):
         return 0
