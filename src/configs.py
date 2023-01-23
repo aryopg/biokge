@@ -28,6 +28,9 @@ class ModelConfigs(BaseModel):
     learning_rate: float = 0.1
     loss_fn: str = "crossentropy"
     grad_accumulation_step: int = 1
+    score_rhs: bool = True
+    score_lhs: bool = True
+    score_rel: bool = False
 
 
 class TrainingConfigs(BaseModel):
