@@ -10,9 +10,9 @@
 #SBATCH -t 24:00:00  # time requested in hour:minute:seconds
 #SBATCH --cpus-per-task=3
 
-module add cuda/11.1 cudnn/8.0_cuda-11.1 miniconda/3
+module add cuda/11.2 cudnn/8.1_cuda-11.2 miniconda/3
 # module add miniconda/3
-# module add cuda/11.0  # avoids compatibility complaint
+module add cuda/11.0  # avoids compatibility complaint
 # module add cudnn/8.0_cuda-11.1
 # module add cuda/11.1
 # module add git-2.14.1-gcc-5.4.0-acb553e
@@ -37,8 +37,7 @@ echo "Setting up conda environment: ${CONDA_ENV_NAME}"
 conda create --name ${CONDA_ENV_NAME} python=3.8
 conda activate ${CONDA_ENV_NAME}
 conda install -y ogb wandb python-dotenv pre-commit black isort pydantic -c conda-forge
-#conda install -y python-dotenv -c conda-forge
-conda install -y pytorch torchvision torchaudio cudatoolkit=11.1 -c pytorch -c nvidia
+conda install -y pytorch torchvision torchaudio cudatoolkit=11.2 -c pytorch -c nvidia
 
 echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
 src_path=/home/${USER}/kge-playground/datasets/biokg
@@ -49,6 +48,9 @@ rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
 echo "Running experiment"
 # limit of 12 GB GPU is hidden 256 and batch size 256
 which python
+python --version
+conda info --envs
+# conda run -n kge_playground
 python scripts/train.py \
 --config_filepath=$1
 --log_to_wandb
