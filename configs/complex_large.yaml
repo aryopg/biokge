@@ -15,6 +15,9 @@ model_configs:
   learning_rate: 0.1
   loss_fn: "crossentropy"
   grad_accumulation_step: 1
+  score_rhs: True
+  score_lhs: True
+  score_rel: False
 training_configs:
   epochs: 40
   eval_steps: 2
