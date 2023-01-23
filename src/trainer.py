@@ -170,14 +170,31 @@ class Trainer:
             edge = self.preprocessing_triples(edge).to(self.device)
 
             # Get right hand and left hand predictions (symmetry)
-            predictions, factors = self.model(edge, score_rhs=True, score_lhs=True)
-            # Right hand side loss
-            rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
-            # Left hand side loss
-            lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
+            predictions, factors = self.model(
+                edge,
+                score_rhs=self.configs.model_configs.score_rhs,
+                score_lhs=self.configs.model_configs.score_lhs,
+                score_rel=self.configs.model_configs.score_rel,
+            )
 
-            # Model loss is a summation of Right hand and Left hand losses
-            loss_fit = rhs_loss_fit + lhs_loss_fit
+            # Model loss is a summation of Right hand, Relation, Left hand losses
+            loss_fit = 0
+
+            # Right hand side loss
+            if self.configs.model_configs.score_rhs:
+                rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
+                loss_fit += rhs_loss_fit
+            # Relationship loss
+            if self.configs.model_configs.score_rel:
+                rel_loss_fit = self.loss_fn(predictions[1], edge[1].squeeze())
+                loss_fit += rel_loss_fit
+            # Left hand side loss
+            if self.configs.model_configs.score_lhs:
+                if self.configs.model_configs.score_rel:
+                    lhs_loss_fit = self.loss_fn(predictions[2], edge[0].squeeze())
+                else:
+                    lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
+                loss_fit += lhs_loss_fit
 
             # Compute regularizers losses
             loss_regs = 0
