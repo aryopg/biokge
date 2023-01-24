@@ -312,7 +312,7 @@ class BioKGDataset:
 
         # Randomly corrupt subject and/or object
         mask = torch.bernoulli(
-            neg_relationships.double()
+            neg_relationships.float()
             .cpu()
             .apply_(lambda val: self.bernoulli_probs.get(val))
             .to(edge[1].device)
