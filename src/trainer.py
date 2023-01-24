@@ -4,6 +4,7 @@ import numpy
 import torch
 import tqdm
 from torch import nn
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 import wandb
@@ -135,8 +136,10 @@ class Trainer:
         Returns:
             nn.Module: Loss function
         """
-        if loss_fn == "crossentropy":
+        if loss_fn == "1vsAll":
             return nn.CrossEntropyLoss()
+        elif loss_fn == "negsampling":
+            return nn.BCEWithLogitsLoss()
 
     def training_epoch(self, dataset, epoch) -> float:
         """
@@ -183,72 +186,54 @@ class Trainer:
                 score_rel=self.configs.model_configs.score_rel,
             )
 
-            # Model loss is a summation of Right hand, Relation, Left hand losses
-            loss_fit = 0
+            if self.configs.model_configs.loss_fn == "negsampling":
+                # Generate negative samples
+                negs = dataset.generate_negs_tensor(
+                    edge, self.configs.model_configs.neg_sampling_rate
+                )
+                # Score generated samples
+                neg_predictions, factors = self.model(
+                    negs,
+                    score_rhs=False,
+                    score_lhs=False,
+                    score_rel=False,
+                )
 
-            # Right hand side loss
-            if self.configs.model_configs.score_rhs:
-                rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
-                loss_fit += rhs_loss_fit
-            # Relationship loss
-            if self.configs.model_configs.score_rel:
-                rel_loss_fit = self.loss_fn(predictions[1], edge[1].squeeze())
-                loss_fit += rel_loss_fit
-            # Left hand side loss
-            if self.configs.model_configs.score_lhs:
+                positive_sample_loss = self.loss_fn(
+                    predictions, torch.ones_like(predictions)
+                )
+                negative_sample_loss = self.loss_fn(
+                    neg_predictions, torch.zeros_like(neg_predictions)
+                )
+
+                loss_fit = (positive_sample_loss + negative_sample_loss) / 2
+
+                # Sum loss
+            elif self.configs.model_configs.loss_fn == "1vsAll":
+                # Model loss is a summation of Right hand, Relation, Left hand losses
+                loss_fit = 0
+
+                # Right hand side loss
+                if self.configs.model_configs.score_rhs:
+                    rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
+                    loss_fit += rhs_loss_fit
+                # Relationship loss
                 if self.configs.model_configs.score_rel:
-                    lhs_loss_fit = self.loss_fn(predictions[2], edge[0].squeeze())
-                else:
-                    lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
-                loss_fit += lhs_loss_fit
+                    rel_loss_fit = self.loss_fn(predictions[1], edge[1].squeeze())
+                    loss_fit += rel_loss_fit
+                # Left hand side loss
+                if self.configs.model_configs.score_lhs:
+                    if self.configs.model_configs.score_rel:
+                        lhs_loss_fit = self.loss_fn(predictions[2], edge[0].squeeze())
+                    else:
+                        lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
+                    loss_fit += lhs_loss_fit
 
             # Compute regularizers losses
             loss_regs = 0
             for regularizer in self.regularizers:
                 loss_reg = regularizer.penalty(factors)
                 loss_regs += loss_reg
-
-            loss_neg = 0
-            if self.configs.model_configs.neg_sampling == "neg_sampling":
-                # Generate negative samples
-                negs = dataset.generate_negs_tensor(
-                    edge, self.configs.model_configs.neg_sampling_rate
-                )
-                # Score generated samples
-                # Get right hand and left hand predictions (symmetry)
-                neg_predictions, factors = self.model(
-                    negs,
-                    score_rhs=self.configs.model_configs.score_rhs,
-                    score_lhs=self.configs.model_configs.score_lhs,
-                    score_rel=self.configs.model_configs.score_rel,
-                )
-                # Right hand side loss
-                if self.configs.model_configs.score_rhs:
-                    rhs_loss_fit = self.loss_fn(neg_predictions[0], negs[2].squeeze())
-                    loss_neg += rhs_loss_fit
-                # Relationship loss
-                if self.configs.model_configs.score_rel:
-                    rel_loss_fit = self.loss_fn(neg_predictions[1], negs[1].squeeze())
-                    loss_neg += rel_loss_fit
-                # Left hand side loss
-                if self.configs.model_configs.score_lhs:
-                    if self.configs.model_configs.score_rel:
-                        lhs_loss_fit = self.loss_fn(
-                            neg_predictions[2], negs[0].squeeze()
-                        )
-                    else:
-                        lhs_loss_fit = self.loss_fn(
-                            neg_predictions[1], negs[0].squeeze()
-                        )
-                    loss_neg += lhs_loss_fit
-
-                # Sum loss
-            elif self.configs.model_configs.neg_sampling == "1vsAll":
-                # TODO:
-                loss_neg = 0
-
-            print(loss_neg)
-            print(loss_fit)
 
             # Sum of model and regularizers losses
             loss = loss_fit + loss_regs
@@ -267,7 +252,10 @@ class Trainer:
                 self.optimizer.zero_grad()
 
             # Record epoch loss
-            num_examples = predictions[0].size(0)
+            if self.configs.model_configs.loss_fn == "negsampling":
+                num_examples = predictions.size(0)
+            elif self.configs.model_configs.loss_fn == "1vsAll":
+                num_examples = predictions[0].size(0)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
 
