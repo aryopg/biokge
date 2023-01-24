@@ -1,8 +1,9 @@
-import os
-import pandas
 import math
-import numpy
+import os
+
 import matplotlib.pyplot
+import numpy
+import pandas
 import torch
 
 
@@ -107,14 +108,14 @@ class BioKGDataset:
             relation_test_negs = self.generate_negs(relation_test, relation)
 
             # Store as numpy arrays
-            self.train_separated[relation] = relation_train.to_numpy()
-            self.valid[relation] = relation_valid.to_numpy()
-            self.valid_negs[relation] = relation_valid_negs
-            self.test[relation] = relation_test.to_numpy()
-            self.test_negs[relation] = relation_test_negs
+            self.train_separated[relation] = relation_train.to_numpy().T
+            self.valid[relation] = relation_valid.to_numpy().T
+            self.valid_negs[relation] = relation_valid_negs.T
+            self.test[relation] = relation_test.to_numpy().T
+            self.test_negs[relation] = relation_test_negs.T
 
         # Also store combined train for actual training
-        self.train = numpy.vstack(list(self.train_separated.values()))
+        self.train = numpy.hstack(list(self.train_separated.values()))
 
     def generate_negs(self, triples, relation):
         """
@@ -237,65 +238,51 @@ class BioKGDataset:
         pos_counts = self.links["relation"].value_counts().rename("P").to_frame()
 
         # Validation negatives
-        valid_negs_counts = (
-            pandas.DataFrame.from_dict(
-                self.valid_negs, orient="index", columns=["negs"], dtype=object
-            )
-            .apply(lambda row: len(row["negs"]), axis=1)
-            .rename("N valid")
+        valid_negs_counts = pandas.DataFrame(
+            [negs.shape[1] for negs in self.valid_negs.values()], columns=["N valid"]
         )
 
         # False validation negatives
-        valid_false_negs_counts = (
-            pandas.DataFrame.from_dict(
-                self.valid_negs, orient="index", columns=["negs"], dtype=object
-            )
-            .apply(
-                lambda row: len(
+        valid_false_negs_counts = pandas.DataFrame(
+            [
+                len(
                     set(
                         [
                             tuple(x)
                             for x in self.links[
-                                self.links["relation"] == row.name
+                                self.links["relation"] == relation
                             ].to_numpy()
                         ]
                     )
-                    & set([tuple(x) for x in row["negs"]])
-                ),
-                axis=1,
-            )
-            .rename("FN valid")
+                    & set([tuple(x) for x in negs.T])
+                )
+                for relation, negs in self.valid_negs.items()
+            ],
+            columns=["FN valid"],
         )
 
         # Test negatives
-        test_negs_counts = (
-            pandas.DataFrame.from_dict(
-                self.test_negs, orient="index", columns=["negs"], dtype=object
-            )
-            .apply(lambda row: len(row["negs"]), axis=1)
-            .rename("N test")
+        test_negs_counts = pandas.DataFrame(
+            [negs.shape[1] for negs in self.test_negs.values()], columns=["N test"]
         )
 
         # False test negatives
-        test_false_negs_counts = (
-            pandas.DataFrame.from_dict(
-                self.test_negs, orient="index", columns=["negs"], dtype=object
-            )
-            .apply(
-                lambda row: len(
+        test_false_negs_counts = pandas.DataFrame(
+            [
+                len(
                     set(
                         [
                             tuple(x)
                             for x in self.links[
-                                self.links["relation"] == row.name
+                                self.links["relation"] == relation
                             ].to_numpy()
                         ]
                     )
-                    & set([tuple(x) for x in row["negs"]])
-                ),
-                axis=1,
-            )
-            .rename("FN test")
+                    & set([tuple(x) for x in negs.T])
+                )
+                for relation, negs in self.test_negs.items()
+            ],
+            columns=["FN test"],
         )
 
         # Join and set index
