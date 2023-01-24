@@ -37,6 +37,7 @@ conda activate ${CONDA_ENV_NAME}
 
 # Run
 echo "Running experiment"
+LD_LIBRARY_PATH=/rds/user/$USER/hpc-work/lib/python3.8/site-packages/torch/lib/nvidia/cublas/lib/:$LD_LIBRART_PATH \
 python scripts/train.py \
 --config_filepath=$1 \
 --log_to_wandb

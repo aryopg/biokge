@@ -1,13 +1,14 @@
 from typing import Dict, List
 
+import numpy
 import torch
-from ogb.linkproppred import Evaluator
+import tqdm
+import wandb
 from torch import nn
 from torch.utils.data import DataLoader
 
-import wandb
-
 from .configs import Configs
+from .evaluator import Evaluator
 from .models.complex import ComplEx
 from .models.regularizers import F2, N3, Regularizer
 from .models.rotate import RotatE
@@ -31,6 +32,7 @@ class Trainer:
         checkpoint_path: str,
         loggers: Dict[str, Logger] = None,
         device: torch.device = None,
+        silent: bool = False,
     ):
         """
         A python class that governs the training and testing process.
@@ -60,6 +62,7 @@ class Trainer:
         self.outputs_dir = outputs_dir
         self.checkpoint_path = checkpoint_path
         self.loggers = loggers
+        self.silent = silent
 
     def setup_model(
         self, num_entities: int, num_relations: int, model_configs: dict
@@ -134,10 +137,9 @@ class Trainer:
         if loss_fn == "crossentropy":
             return nn.CrossEntropyLoss()
 
-    def training_epoch(self, dataset) -> float:
+    def training_epoch(self, dataset, epoch) -> float:
         """
         Method that represents one training epoch (multiple training steps).
-        Currently designed only for OGB LinkPropPredDataset
 
         Args:
             dataset (tbd): Dataset object containing the triplets
@@ -149,28 +151,28 @@ class Trainer:
         # Set model mode to train
         self.model.train()
 
-        # Retrieve all training triples
-        ## Convert to a torch tensor
-        if dataset.name == "ogbl-ppa":
-            pos_train_edge = torch.from_numpy(dataset["train"]["edge"])
-        elif dataset.name == "dsi-bdi-biokg":
-            pos_train_edge = torch.from_numpy(dataset.train)
+        # Retrieve all training triples and convert to a torch tensor
+        pos_train_edge = torch.from_numpy(dataset.train)
 
-        ## Load to DataLoader for sampling
+        ## Create DataLoader for sampling
         train_data_loader = DataLoader(
-            range(pos_train_edge.size(0)),
+            range(pos_train_edge.size(1)),
             self.configs.model_configs.batch_size,
             shuffle=True,
         )
 
         total_loss = 0
         total_examples = 0
-        for iteration, perm in enumerate(train_data_loader):
-            # Sample triplets
-            edge = pos_train_edge[perm]
+        for iteration, perm in tqdm.tqdm(
+            enumerate(train_data_loader),
+            desc=f"EPOCH {epoch}, batch ",
+            unit="",
+            total=len(train_data_loader),
+            disable=self.silent,
+        ):
 
-            # Preprocess triples based on the dataset specification
-            edge = self.preprocessing_triples(edge).to(self.device)
+            # Sample triples
+            edge = pos_train_edge[:, perm].to(self.device)
 
             # Get right hand and left hand predictions (symmetry)
             predictions, factors = self.model(
@@ -228,9 +230,9 @@ class Trainer:
 
         return total_loss / total_examples
 
-    def train(self, dataset, evaluator=None):
+    def train(self, dataset, evaluator):
         for epoch in range(1, 1 + self.configs.training_configs.epochs):
-            train_loss = self.training_epoch(dataset)
+            train_loss = self.training_epoch(dataset, epoch)
 
             if epoch % self.configs.training_configs.eval_steps == 0:
                 results = self.test(dataset, evaluator)
@@ -270,51 +272,47 @@ class Trainer:
     def test(self, dataset, evaluator: Evaluator) -> dict:
         """
         Test model performance.
-        This code is mostly adopted from the OGB Link Prediction codes.
+        This code is mostly adopted from the OGB Link Prediction code: https://github.com/snap-stanford/ogb/tree/master/ogb/linkproppred
 
         Args:
-            dataset (tbd): Dataset of triples
-            evaluator (Evaluator): OGB evaluator class
+            dataset (Dataset): dataset instance of triples
+            evaluator (Evaluator): evaluator instance
 
         Returns:
-            dict: Model metrics
+            metrics (dict)
         """
 
         def test_iteration(edge) -> torch.Tensor:
             """Run inference on data batches"""
-            preds = []
-            for perm in DataLoader(
-                range(edge.size(0)), self.configs.model_configs.batch_size
-            ):
-                perm_edge = edge[perm]
-                perm_edge = self.preprocessing_triples(perm_edge).to(self.device)
-                preds += [self.model.score(perm_edge).squeeze().cpu()]
-
-            return torch.cat(preds, dim=0)
-
-        def hits_evaluation(y_pred_pos, y_pred_neg, K: int) -> float:
-            """Use OGB Evaluator to get the Hits metrics"""
-            evaluator.K = K
-            return evaluator.eval(
-                {
-                    "y_pred_pos": y_pred_pos,
-                    "y_pred_neg": y_pred_neg,
-                }
-            )[f"hits@{K}"]
+            return torch.cat(
+                [
+                    self.model.score(edge[:, perm].to(self.device)).squeeze().cpu()
+                    for perm in DataLoader(
+                        range(edge.size(1)), self.configs.model_configs.batch_size
+                    )
+                ],
+                dim=0,
+            )
 
         # Set model mode to evaluation
         self.model.eval()
 
-        # Loop over predicates and collect metrics
-        results = {"Hits@10": (0, 0, 0), "Hits@50": (0, 0, 0), "Hits@100": (0, 0, 0)}
-        for relation_name, relation in dataset.relation_voc.items():
+        # Loop over Ks and collect metrics
+        results = {}
+        for K in [10, 50, 100]:
 
-            # Get all the triples with negative samples for validation and test data
-            pos_train_edge = torch.from_numpy(dataset.train_separated[relation])
-            pos_valid_edge = torch.from_numpy(dataset.valid[relation])
-            neg_valid_edge = torch.from_numpy(dataset.valid_negs[relation])
-            pos_test_edge = torch.from_numpy(dataset.test[relation])
-            neg_test_edge = torch.from_numpy(dataset.test_negs[relation])
+            ### TOTAL
+            pos_train_edge = torch.from_numpy(dataset.train)
+            pos_valid_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.valid.values()))
+            )
+            neg_valid_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.valid_negs.values()))
+            )
+            pos_test_edge = torch.from_numpy(numpy.hstack(list(dataset.test.values())))
+            neg_test_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.test_negs.values()))
+            )
 
             # Run test iterations using the loaded triples
             pos_train_pred = test_iteration(pos_train_edge)
@@ -323,59 +321,47 @@ class Trainer:
             pos_test_pred = test_iteration(pos_test_edge)
             neg_test_pred = test_iteration(neg_test_edge)
 
-            # Calculate the results by comparing the inference of
-            # positive and negative samples
-            for K in [10, 50, 100]:
-                train_hits = hits_evaluation(pos_train_pred, neg_valid_pred, K)
-                valid_hits = hits_evaluation(pos_valid_pred, neg_valid_pred, K)
-                test_hits = hits_evaluation(pos_test_pred, neg_test_pred, K)
+            # Evaluate
+            train_hits = evaluator.eval(pos_train_pred, neg_valid_pred, K)
+            valid_hits = evaluator.eval(pos_valid_pred, neg_valid_pred, K)
+            test_hits = evaluator.eval(pos_test_pred, neg_test_pred, K)
 
+            # Collect
+            results[f"Hits@{K}"] = (
+                train_hits,
+                valid_hits,
+                test_hits,
+            )
+
+            ### SEPARATED
+            for relation_name, relation in dataset.relation_voc.items():
+
+                pos_train_edge = torch.from_numpy(dataset.train_separated[relation])
+                pos_valid_edge = torch.from_numpy(dataset.valid[relation])
+                neg_valid_edge = torch.from_numpy(dataset.valid_negs[relation])
+                pos_test_edge = torch.from_numpy(dataset.test[relation])
+                neg_test_edge = torch.from_numpy(dataset.test_negs[relation])
+
+                # Run test iterations using the loaded triples
+                pos_train_pred = test_iteration(pos_train_edge)
+                pos_valid_pred = test_iteration(pos_valid_edge)
+                neg_valid_pred = test_iteration(neg_valid_edge)
+                pos_test_pred = test_iteration(pos_test_edge)
+                neg_test_pred = test_iteration(neg_test_edge)
+
+                # Evaluate
+                train_hits = evaluator.eval(pos_train_pred, neg_valid_pred, K)
+                valid_hits = evaluator.eval(pos_valid_pred, neg_valid_pred, K)
+                test_hits = evaluator.eval(pos_test_pred, neg_test_pred, K)
+
+                # Collect
                 results[f"Hits@{K}_{relation_name}"] = (
                     train_hits,
                     valid_hits,
                     test_hits,
                 )
 
-                # Keep track of unseparated metrics as well: weighted average
-                results[f"Hits@{K}"] = [
-                    avg + ((weight * metric) / normaliser)
-                    for avg, metric, weight, normaliser in zip(
-                        results[f"Hits@{K}"],
-                        results[f"Hits@{K}_{relation_name}"],
-                        (len(pos_train_pred), len(pos_valid_pred), len(pos_test_pred)),
-                        (
-                            dataset.num_train_entries,
-                            dataset.num_valid_entries,
-                            dataset.num_test_entries,
-                        ),
-                    )
-                ]
-
         return results
-
-    def preprocessing_triples(self, edge) -> torch.Tensor:
-        """
-        Preprocess triples based on the dataset.
-        OGBL-PPA does not provide relations within the triples,
-        but it only contains one type of relation.
-
-        Args:
-            edge (tbd): subject, predicate and object.
-                OGBL-PPA misses the predicate.
-
-        Returns:
-            torch.Tensor: Tensors of the triple (subject, predicate, object)
-        """
-        if self.configs.dataset_configs.dataset_name == "ogbl-ppa":
-            subj = edge[:, 0].unsqueeze(0)
-            obj = edge[:, 1].unsqueeze(0)
-            # Assign zeros to represent the uniform predicates of OGBL-PPA
-            return torch.cat([subj, torch.zeros_like(subj), obj], axis=0)
-        elif self.configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
-            subj = edge[:, 0].unsqueeze(0)
-            relation = edge[:, 1].unsqueeze(0)
-            obj = edge[:, 2].unsqueeze(0)
-            return torch.cat([subj, relation, obj], axis=0)
 
     # TODO: save checkpoint of regularizers too
     def save_checkpoint(self, epoch: int, metrics: dict):
