@@ -3,7 +3,7 @@ dataset_configs:
   datasets_dir: "datasets/biokg"
   train_frac: 0.8
   valid_frac: 0.1
-  neg_sampling_strat: "bernoulli"
+  neg_sampling_strat: "uniform"
 model_configs:
   model_type: "complex"
   hidden_size: 256
@@ -21,6 +21,8 @@ model_configs:
   score_rhs: True
   score_lhs: True
   score_rel: True
+  neg_sampling: "neg_sampling"
+  neg_sampling_rate: 1
 training_configs:
   epochs: 20
   eval_steps: 1

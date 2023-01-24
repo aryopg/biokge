@@ -1,11 +1,13 @@
 from typing import Dict, List
 
+import pandas as pd
 import torch
 from ogb.linkproppred import Evaluator
 from torch import nn
 from torch.utils.data import DataLoader
 
 import wandb
+from src.datasets.BioKG import BioKGDataset
 
 from .configs import Configs
 from .models.complex import ComplEx
@@ -201,6 +203,42 @@ class Trainer:
             for regularizer in self.regularizers:
                 loss_reg = regularizer.penalty(factors)
                 loss_regs += loss_reg
+
+            loss_neg = 0
+            if self.configs.model_configs.neg_sampling == "neg_sampling":
+                # Generate negative samples
+                negs = dataset.generate_negs_tensor(edge, self.configs.model_configs.neg_sampling_rate)
+                # Score generated samples
+                # Get right hand and left hand predictions (symmetry)
+                neg_predictions, factors = self.model(
+                    negs,
+                    score_rhs=self.configs.model_configs.score_rhs,
+                    score_lhs=self.configs.model_configs.score_lhs,
+                    score_rel=self.configs.model_configs.score_rel,
+                )
+                # Right hand side loss
+                if self.configs.model_configs.score_rhs:
+                    rhs_loss_fit = self.loss_fn(neg_predictions[0], negs[2].squeeze())
+                    loss_neg += rhs_loss_fit
+                # Relationship loss
+                if self.configs.model_configs.score_rel:
+                    rel_loss_fit = self.loss_fn(neg_predictions[1], negs[1].squeeze())
+                    loss_neg += rel_loss_fit
+                # Left hand side loss
+                if self.configs.model_configs.score_lhs:
+                    if self.configs.model_configs.score_rel:
+                        lhs_loss_fit = self.loss_fn(neg_predictions[2], negs[0].squeeze())
+                    else:
+                        lhs_loss_fit = self.loss_fn(neg_predictions[1], negs[0].squeeze())
+                    loss_neg += lhs_loss_fit
+                
+                # Sum loss
+            elif self.configs.model_configs.neg_sampling == "1vsAll":
+                # TODO:
+                loss_neg = 0
+
+            print(loss_neg)
+            print(loss_fit)
 
             # Sum of model and regularizers losses
             loss = loss_fit + loss_regs
