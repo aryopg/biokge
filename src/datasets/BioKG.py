@@ -226,119 +226,138 @@ class BioKGDataset:
             ]
         ).T
 
-    def plot_statistics(self, save_location):
+    def plot_statistics(self):
         """
         Plot pos/neg/false neg count per relation
-
-        Args:
-        - save_location (path): path used to store fig pdf
         """
 
+        ### Create statistics table
+
         # Positives
-        pos_counts = self.links["relation"].value_counts()
-        pos_counts = {
-            relation: count
-            for relation, count in zip(pos_counts.index.values, pos_counts.values)
-        }
+        pos_counts = self.links["relation"].value_counts().rename("P").to_frame()
 
         # Validation negatives
-        valid_negs_counts = dict(
-            sorted(
-                {
-                    relation: len(negs) for relation, negs in self.valid_negs.items()
-                }.items(),
-                key=lambda x: x[1],
-                reverse=True,
+        valid_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.valid_negs, orient="index", columns=["negs"], dtype=object
             )
+            .apply(lambda row: len(row["negs"]), axis=1)
+            .rename("N valid")
         )
 
         # False validation negatives
-        valid_false_negs_counts = {
-            relation: len(
-                set(
-                    [
-                        tuple(x)
-                        for x in self.links[
-                            self.links["relation"] == relation
-                        ].to_numpy()
-                    ]
-                )
-                & set([tuple(x) for x in self.valid_negs[relation]])
+        valid_false_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.valid_negs, orient="index", columns=["negs"], dtype=object
             )
-            for relation in valid_negs_counts.keys()
-        }
+            .apply(
+                lambda row: len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == row.name
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in row["negs"]])
+                ),
+                axis=1,
+            )
+            .rename("FN valid")
+        )
 
         # Test negatives
-        test_negs_counts = dict(
-            sorted(
-                {
-                    relation: len(negs) for relation, negs in self.test_negs.items()
-                }.items(),
-                key=lambda x: x[1],
-                reverse=True,
+        test_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.test_negs, orient="index", columns=["negs"], dtype=object
             )
+            .apply(lambda row: len(row["negs"]), axis=1)
+            .rename("N test")
         )
 
         # False test negatives
-        test_false_negs_counts = {
-            relation: len(
-                set(
-                    [
-                        tuple(x)
-                        for x in self.links[
-                            self.links["relation"] == relation
-                        ].to_numpy()
-                    ]
-                )
-                & set([tuple(x) for x in self.test_negs[relation]])
+        test_false_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.test_negs, orient="index", columns=["negs"], dtype=object
             )
-            for relation in test_negs_counts.keys()
-        }
+            .apply(
+                lambda row: len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == row.name
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in row["negs"]])
+                ),
+                axis=1,
+            )
+            .rename("FN test")
+        )
+
+        # Join and set index
+        statistics = (
+            pos_counts.join(valid_negs_counts)
+            .join(valid_false_negs_counts)
+            .join(test_negs_counts)
+            .join(test_false_negs_counts)
+        )
+        statistics["relation"] = [
+            self.reverse_relation_voc[index] for index in statistics.index.values
+        ]
+        statistics.set_index("relation", inplace=True)
+
+        # Save
+        statistics.to_csv(
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.csv")
+        )
 
         ### Plot
         fig, ax = matplotlib.pyplot.subplots()
         x = numpy.arange(len(self.relation_voc.keys()))
 
         # Positives
-        ax.bar(x, pos_counts.values(), width=0.25, color="r", label="P")
+        ax.bar(x, statistics.loc[:, "P"], width=0.25, color="lightcoral", label="P")
 
         # Validation negatives
         ax.bar(
             x + 0.25,
-            valid_negs_counts.values(),
+            statistics.loc[:, "N valid"],
             width=0.25,
-            color="seagreen",
+            color="darkseagreen",
             label="N valid",
         )
         ax.bar(
             x + 0.25,
-            valid_false_negs_counts.values(),
+            statistics.loc[:, "FN valid"],
             width=0.25,
-            color="lime",
-            label="FN valid",
+            color="slategray",
         )
 
         # Test negatives
         ax.bar(
             x + 0.25 * 2,
-            test_negs_counts.values(),
+            statistics.loc[:, "N test"],
             width=0.25,
-            color="lightsteelblue",
+            color="cornflowerblue",
             label="N test",
         )
         ax.bar(
             x + 0.25 * 2,
-            test_false_negs_counts.values(),
+            statistics.loc[:, "FN test"],
             width=0.25,
-            color="blue",
-            label="FN test",
+            color="slategray",
+            label="FN",
         )
 
         ax.legend()
         matplotlib.pyplot.xlabel("Relation")
         matplotlib.pyplot.xticks(
             x + 0.25,
-            [self.reverse_relation_voc[relation] for relation in pos_counts.keys()],
+            statistics.index.values,
             rotation=45,
             ha="right",
             rotation_mode="anchor",
@@ -348,47 +367,7 @@ class BioKGDataset:
 
         # Save
         fig.savefig(
-            save_location,
-            format="pdf",
-            bbox_inches="tight",
-        )
-
-    def plot_neg_counts(self, save_location, type="valid"):
-        """
-        Plot negative count per relation
-
-        Args:
-        - save_location (path): path used to store fig pdf
-        - type (str): valid or test, which negs to plot
-        """
-        negs_per_relation = getattr(self, type + "_negs")
-        counts = [len(negs) for negs in negs_per_relation.values()]
-
-        # Plot
-        fig, ax = matplotlib.pyplot.subplots()
-        ax.bar(
-            [
-                self.reverse_relation_voc[relation]
-                for relation in negs_per_relation.keys()
-            ],
-            counts,
-        )
-        upper_bound = 60e3
-        matplotlib.pyplot.xlabel("Relation")
-        matplotlib.pyplot.xticks(rotation=45, ha="right", rotation_mode="anchor")
-        matplotlib.pyplot.ylabel("Count")
-        matplotlib.pyplot.ylim(0, upper_bound)
-        matplotlib.pyplot.title("Negatives")
-
-        # Add counts in bars
-        for idx, relation in enumerate(counts.index):
-            matplotlib.pyplot.text(
-                idx, upper_bound / 2, counts[relation], rotation=90, ha="center"
-            )
-
-        # Save
-        fig.savefig(
-            save_location,
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.pdf"),
             format="pdf",
             bbox_inches="tight",
         )
