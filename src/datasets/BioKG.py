@@ -52,6 +52,9 @@ class BioKGDataset:
         self.relation_voc = {
             relation: idx for relation, idx in zip(relations, range(len(relations)))
         }
+        self.reverse_relation_voc = {
+            idx: relation for relation, idx in zip(relations, range(len(relations)))
+        }
         self.links["relation"] = self.links["relation"].apply(
             lambda relation: self.relation_voc[relation]
         )
@@ -61,6 +64,9 @@ class BioKGDataset:
         entities = pandas.concat([self.links["subject"], self.links["object"]]).unique()
         self.entity_voc = {
             entity: idx for entity, idx in zip(entities, range(len(entities)))
+        }
+        self.reverse_entity_voc = {
+            idx: entity for entity, idx in zip(entities, range(len(entities)))
         }
         self.links["subject"] = self.links["subject"].apply(
             lambda entity: self.entity_voc[entity]
@@ -193,7 +199,6 @@ class BioKGDataset:
         Returns:
         - negative samples (numpy, (N,3))
         """
-
         n_neg = math.ceil(
             100 / len(triples)
         )  # calculate specific number of negatives to generate, ensuring at least 100
@@ -221,40 +226,151 @@ class BioKGDataset:
             ]
         ).T
 
-    def plot_edge_distribution(self, save=False):
+    def plot_statistics(self):
         """
-        Plot relation type distribution
-
-        - save (string): path to figure if saving, starts in cwd
+        Plot pos/neg/false neg count per relation
         """
-        counts = self.links["relation"].value_counts()
 
-        # Plot
-        fig, ax = matplotlib.pyplot.subplots()
-        counts.plot(ax=ax, kind="bar")
-        upper_bound = 60e3
-        matplotlib.pyplot.xlabel("relation")
-        matplotlib.pyplot.xticks(rotation=45, ha="right", rotation_mode="anchor")
-        matplotlib.pyplot.ylabel("Count")
-        matplotlib.pyplot.ylim(0, upper_bound)
-        matplotlib.pyplot.title("relation distribution")
+        ### Create statistics table
 
-        # Add counts in bars
-        for bar in range(len(counts)):
-            matplotlib.pyplot.text(
-                bar, upper_bound / 2, counts[bar], rotation=90, ha="center"
+        # Positives
+        pos_counts = self.links["relation"].value_counts().rename("P").to_frame()
+
+        # Validation negatives
+        valid_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.valid_negs, orient="index", columns=["negs"], dtype=object
             )
+            .apply(lambda row: len(row["negs"]), axis=1)
+            .rename("N valid")
+        )
 
-        # Show
-        matplotlib.pyplot.show()
+        # False validation negatives
+        valid_false_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.valid_negs, orient="index", columns=["negs"], dtype=object
+            )
+            .apply(
+                lambda row: len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == row.name
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in row["negs"]])
+                ),
+                axis=1,
+            )
+            .rename("FN valid")
+        )
+
+        # Test negatives
+        test_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.test_negs, orient="index", columns=["negs"], dtype=object
+            )
+            .apply(lambda row: len(row["negs"]), axis=1)
+            .rename("N test")
+        )
+
+        # False test negatives
+        test_false_negs_counts = (
+            pandas.DataFrame.from_dict(
+                self.test_negs, orient="index", columns=["negs"], dtype=object
+            )
+            .apply(
+                lambda row: len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == row.name
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in row["negs"]])
+                ),
+                axis=1,
+            )
+            .rename("FN test")
+        )
+
+        # Join and set index
+        statistics = (
+            pos_counts.join(valid_negs_counts)
+            .join(valid_false_negs_counts)
+            .join(test_negs_counts)
+            .join(test_false_negs_counts)
+        )
+        statistics["relation"] = [
+            self.reverse_relation_voc[index] for index in statistics.index.values
+        ]
+        statistics.set_index("relation", inplace=True)
 
         # Save
-        if save:
-            fig.savefig(
-                os.path.join(os.getcwd(), save + ".pdf"),
-                format="pdf",
-                bbox_inches="tight",
-            )
+        statistics.to_csv(
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.csv")
+        )
+
+        ### Plot
+        fig, ax = matplotlib.pyplot.subplots()
+        x = numpy.arange(len(self.relation_voc.keys()))
+
+        # Positives
+        ax.bar(x, statistics.loc[:, "P"], width=0.25, color="lightcoral", label="P")
+
+        # Validation negatives
+        ax.bar(
+            x + 0.25,
+            statistics.loc[:, "N valid"],
+            width=0.25,
+            color="darkseagreen",
+            label="N valid",
+        )
+        ax.bar(
+            x + 0.25,
+            statistics.loc[:, "FN valid"],
+            width=0.25,
+            color="slategray",
+        )
+
+        # Test negatives
+        ax.bar(
+            x + 0.25 * 2,
+            statistics.loc[:, "N test"],
+            width=0.25,
+            color="cornflowerblue",
+            label="N test",
+        )
+        ax.bar(
+            x + 0.25 * 2,
+            statistics.loc[:, "FN test"],
+            width=0.25,
+            color="slategray",
+            label="FN",
+        )
+
+        ax.legend()
+        matplotlib.pyplot.xlabel("Relation")
+        matplotlib.pyplot.xticks(
+            x + 0.25,
+            statistics.index.values,
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor",
+        )
+        matplotlib.pyplot.ylabel("Count (log)")
+        matplotlib.pyplot.yscale("log")
+
+        # Save
+        fig.savefig(
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.pdf"),
+            format="pdf",
+            bbox_inches="tight",
+        )
 
     def __getitem__(self):
         return 0
