@@ -114,14 +114,14 @@ class BioKGDataset:
             relation_test_negs = self.generate_negs(relation_test, relation, n_neg)
 
             # Store as numpy arrays
-            self.train_separated[relation] = relation_train.to_numpy()
-            self.valid[relation] = relation_valid.to_numpy()
-            self.valid_negs[relation] = relation_valid_negs
-            self.test[relation] = relation_test.to_numpy()
-            self.test_negs[relation] = relation_test_negs
+            self.train_separated[relation] = relation_train.to_numpy().T
+            self.valid[relation] = relation_valid.to_numpy().T
+            self.valid_negs[relation] = relation_valid_negs.T
+            self.test[relation] = relation_test.to_numpy().T
+            self.test_negs[relation] = relation_test_negs.T
 
         # Also store combined train for actual training
-        self.train = numpy.vstack(list(self.train_separated.values()))
+        self.train = numpy.hstack(list(self.train_separated.values()))
 
     def generate_negs(self, triples, relation, n_neg):
         """
@@ -240,7 +240,9 @@ class BioKGDataset:
 
             # Calculate Bernoulli probs once
             if not hasattr(self, "bernoulli_probs"):
-                raise Exception("bernouli probs not calculated during preprocessing but used in training")
+                raise Exception(
+                    "bernouli probs not calculated during preprocessing but used in training"
+                )
 
             return self.generate_negs_bernoulli_tensor(edge, n_neg)
         else:
@@ -266,12 +268,19 @@ class BioKGDataset:
         neg_relationships = edge[1].repeat(n_neg)
 
         # Randomly corrupt subject and/or object
-        mask = torch.bernoulli(torch.ones(size=(len(edge[2]) * n_neg,)).to(edge[1].device) / 2).double()
+        mask = torch.bernoulli(
+            torch.ones(size=(len(edge[2]) * n_neg,)).to(edge[1].device) / 2
+        ).double()
         n_h_cor = int(mask.sum().item())
-        neg_subjects[mask == 1] = torch.randint(0, self.num_entities, (n_h_cor,), device=edge[1].device)
+        neg_subjects[mask == 1] = torch.randint(
+            0, self.num_entities, (n_h_cor,), device=edge[1].device
+        )
 
         neg_objects[mask == 0] = torch.randint(
-            0, self.num_entities, (len(edge[0]) * n_neg - n_h_cor,), device=edge[1].device
+            0,
+            self.num_entities,
+            (len(edge[0]) * n_neg - n_h_cor,),
+            device=edge[1].device,
         )
 
         # Return negative triples
@@ -302,13 +311,23 @@ class BioKGDataset:
         neg_relationships = edge[1].repeat(n_neg)
 
         # Randomly corrupt subject and/or object
-        mask = torch.bernoulli(neg_relationships.double().cpu().apply_(lambda val: self.bernoulli_probs.get(val)).to(edge[1].device)).int()
+        mask = torch.bernoulli(
+            neg_relationships.double()
+            .cpu()
+            .apply_(lambda val: self.bernoulli_probs.get(val))
+            .to(edge[1].device)
+        ).int()
 
         n_h_cor = int(mask.sum().item())
-        neg_subjects[mask == 1] = torch.randint(0, self.num_entities, (n_h_cor,), device=edge[1].device)
+        neg_subjects[mask == 1] = torch.randint(
+            0, self.num_entities, (n_h_cor,), device=edge[1].device
+        )
 
         neg_objects[mask == 0] = torch.randint(
-            0, self.num_entities, (len(edge[0]) * n_neg - n_h_cor,), device=edge[1].device
+            0,
+            self.num_entities,
+            (len(edge[0]) * n_neg - n_h_cor,),
+            device=edge[1].device,
         )
 
         # Return negative triples
@@ -323,116 +342,121 @@ class BioKGDataset:
     def plot_statistics(self, save_location):
         """
         Plot pos/neg/false neg count per relation
-
-        Args:
-        - save_location (path): path used to store fig pdf
         """
 
+        ### Create statistics table
+
         # Positives
-        pos_counts = self.links["relation"].value_counts()
-        pos_counts = {
-            relation: count
-            for relation, count in zip(pos_counts.index.values, pos_counts.values)
-        }
+        pos_counts = self.links["relation"].value_counts().rename("P").to_frame()
 
         # Validation negatives
-        valid_negs_counts = dict(
-            sorted(
-                {
-                    relation: len(negs) for relation, negs in self.valid_negs.items()
-                }.items(),
-                key=lambda x: x[1],
-                reverse=True,
-            )
+        valid_negs_counts = pandas.DataFrame(
+            [negs.shape[1] for negs in self.valid_negs.values()], columns=["N valid"]
         )
 
         # False validation negatives
-        valid_false_negs_counts = {
-            relation: len(
-                set(
-                    [
-                        tuple(x)
-                        for x in self.links[
-                            self.links["relation"] == relation
-                        ].to_numpy()
-                    ]
+        valid_false_negs_counts = pandas.DataFrame(
+            [
+                len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == relation
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in negs.T])
                 )
-                & set([tuple(x) for x in self.valid_negs[relation]])
-            )
-            for relation in valid_negs_counts.keys()
-        }
+                for relation, negs in self.valid_negs.items()
+            ],
+            columns=["FN valid"],
+        )
 
         # Test negatives
-        test_negs_counts = dict(
-            sorted(
-                {
-                    relation: len(negs) for relation, negs in self.test_negs.items()
-                }.items(),
-                key=lambda x: x[1],
-                reverse=True,
-            )
+        test_negs_counts = pandas.DataFrame(
+            [negs.shape[1] for negs in self.test_negs.values()], columns=["N test"]
         )
 
         # False test negatives
-        test_false_negs_counts = {
-            relation: len(
-                set(
-                    [
-                        tuple(x)
-                        for x in self.links[
-                            self.links["relation"] == relation
-                        ].to_numpy()
-                    ]
+        test_false_negs_counts = pandas.DataFrame(
+            [
+                len(
+                    set(
+                        [
+                            tuple(x)
+                            for x in self.links[
+                                self.links["relation"] == relation
+                            ].to_numpy()
+                        ]
+                    )
+                    & set([tuple(x) for x in negs.T])
                 )
-                & set([tuple(x) for x in self.test_negs[relation]])
-            )
-            for relation in test_negs_counts.keys()
-        }
+                for relation, negs in self.test_negs.items()
+            ],
+            columns=["FN test"],
+        )
+
+        # Join and set index
+        statistics = (
+            pos_counts.join(valid_negs_counts)
+            .join(valid_false_negs_counts)
+            .join(test_negs_counts)
+            .join(test_false_negs_counts)
+        )
+        statistics["relation"] = [
+            self.reverse_relation_voc[index] for index in statistics.index.values
+        ]
+        statistics.set_index("relation", inplace=True)
+
+        # Save
+        statistics.to_csv(
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.csv")
+        )
 
         ### Plot
         fig, ax = matplotlib.pyplot.subplots()
         x = numpy.arange(len(self.relation_voc.keys()))
 
         # Positives
-        ax.bar(x, pos_counts.values(), width=0.25, color="r", label="P")
+        ax.bar(x, statistics.loc[:, "P"], width=0.25, color="lightcoral", label="P")
 
         # Validation negatives
         ax.bar(
             x + 0.25,
-            valid_negs_counts.values(),
+            statistics.loc[:, "N valid"],
             width=0.25,
-            color="seagreen",
+            color="darkseagreen",
             label="N valid",
         )
         ax.bar(
             x + 0.25,
-            valid_false_negs_counts.values(),
+            statistics.loc[:, "FN valid"],
             width=0.25,
-            color="lime",
-            label="FN valid",
+            color="slategray",
         )
 
         # Test negatives
         ax.bar(
             x + 0.25 * 2,
-            test_negs_counts.values(),
+            statistics.loc[:, "N test"],
             width=0.25,
-            color="lightsteelblue",
+            color="cornflowerblue",
             label="N test",
         )
         ax.bar(
             x + 0.25 * 2,
-            test_false_negs_counts.values(),
+            statistics.loc[:, "FN test"],
             width=0.25,
-            color="blue",
-            label="FN test",
+            color="slategray",
+            label="FN",
         )
 
         ax.legend()
         matplotlib.pyplot.xlabel("Relation")
         matplotlib.pyplot.xticks(
             x + 0.25,
-            [self.reverse_relation_voc[relation] for relation in pos_counts.keys()],
+            statistics.index.values,
             rotation=45,
             ha="right",
             rotation_mode="anchor",
@@ -442,47 +466,7 @@ class BioKGDataset:
 
         # Save
         fig.savefig(
-            save_location,
-            format="pdf",
-            bbox_inches="tight",
-        )
-
-    def plot_neg_counts(self, save_location, type="valid"):
-        """
-        Plot negative count per relation
-
-        Args:
-        - save_location (path): path used to store fig pdf
-        - type (str): valid or test, which negs to plot
-        """
-        negs_per_relation = getattr(self, type + "_negs")
-        counts = [len(negs) for negs in negs_per_relation.values()]
-
-        # Plot
-        fig, ax = matplotlib.pyplot.subplots()
-        ax.bar(
-            [
-                self.reverse_relation_voc[relation]
-                for relation in negs_per_relation.keys()
-            ],
-            counts,
-        )
-        upper_bound = 60e3
-        matplotlib.pyplot.xlabel("Relation")
-        matplotlib.pyplot.xticks(rotation=45, ha="right", rotation_mode="anchor")
-        matplotlib.pyplot.ylabel("Count")
-        matplotlib.pyplot.ylim(0, upper_bound)
-        matplotlib.pyplot.title("Negatives")
-
-        # Add counts in bars
-        for idx, relation in enumerate(counts.index):
-            matplotlib.pyplot.text(
-                idx, upper_bound / 2, counts[relation], rotation=90, ha="center"
-            )
-
-        # Save
-        fig.savefig(
-            save_location,
+            os.path.join(os.getcwd(), self.datasets_dir, "statistics.pdf"),
             format="pdf",
             bbox_inches="tight",
         )

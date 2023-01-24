@@ -1,23 +1,25 @@
 dataset_configs:
-  dataset_name: "ogbl-ppa"
-  datasets_dir: null
+  dataset_name: "dsi-bdi-biokg"
+  datasets_dir: "datasets/biokg"
+  train_frac: 0.8
+  valid_frac: 0.1
+  neg_sampling_strat: "bernoulli"
 model_configs:
-  model_type: "complex"
-  hidden_size: 100
+  model_type: "rotate"
+  hidden_size: 256
   regularizers:
     - type: n3
       coeff: 1e-2
     - type: f2
       coeff: 0
   dropout: 0.0
-  batch_size: 300
+  batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
   loss_fn: "crossentropy"
   grad_accumulation_step: 1
   score_rhs: True
   score_lhs: True
-  score_rel: False
 training_configs:
   epochs: 20
   eval_steps: 1
