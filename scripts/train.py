@@ -41,7 +41,7 @@ def main():
     wandb.init(
         project="kge_ppa",
         entity="protein-kge",
-        mode="enabled" if args.log_to_wandb else "disabled",
+        mode="online" if args.log_to_wandb else "disabled",
     )
     wandb.config.update(configs.dict())
 
