@@ -6,20 +6,22 @@ dataset_configs:
   neg_sampling_strat: "bernoulli"
 model_configs:
   model_type: "rotate"
-  hidden_size: 256
+  hidden_size: 100
   regularizers:
     - type: n3
       coeff: 1e-2
     - type: f2
       coeff: 0
   dropout: 0.0
-  batch_size: 100
+  batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
-  loss_fn: "crossentropy"
+  loss_fn: "negsampling"
   grad_accumulation_step: 1
   score_rhs: True
   score_lhs: True
+  score_rel: False
+  neg_sampling_rate: 1
 training_configs:
   epochs: 20
   eval_steps: 1

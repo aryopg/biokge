@@ -16,13 +16,11 @@ model_configs:
   batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
-  loss_fn: "crossentropy"
+  loss_fn: "1vsAll"
   grad_accumulation_step: 1
   score_rhs: True
   score_lhs: True
   score_rel: True
-  neg_sampling: "neg_sampling"
-  neg_sampling_rate: 1
 training_configs:
   epochs: 20
   eval_steps: 1
