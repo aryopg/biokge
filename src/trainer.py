@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import numpy
 import torch
 import tqdm
 import wandb
@@ -296,16 +297,22 @@ class Trainer:
         # Set model mode to evaluation
         self.model.eval()
 
-        # Loop over predicates and collect metrics
-        results = {"Hits@10": (0, 0, 0), "Hits@50": (0, 0, 0), "Hits@100": (0, 0, 0)}
-        for relation_name, relation in dataset.relation_voc.items():
+        # Loop over Ks and collect metrics
+        results = {}
+        for K in [10, 50, 100]:
 
-            # Get all the triples with negative samples for validation and test data
-            pos_train_edge = torch.from_numpy(dataset.train_separated[relation])
-            pos_valid_edge = torch.from_numpy(dataset.valid[relation])
-            neg_valid_edge = torch.from_numpy(dataset.valid_negs[relation])
-            pos_test_edge = torch.from_numpy(dataset.test[relation])
-            neg_test_edge = torch.from_numpy(dataset.test_negs[relation])
+            ### TOTAL
+            pos_train_edge = torch.from_numpy(dataset.train)
+            pos_valid_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.valid.values()))
+            )
+            neg_valid_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.valid_negs.values()))
+            )
+            pos_test_edge = torch.from_numpy(numpy.hstack(list(dataset.test.values())))
+            neg_test_edge = torch.from_numpy(
+                numpy.hstack(list(dataset.test_negs.values()))
+            )
 
             # Run test iterations using the loaded triples
             pos_train_pred = test_iteration(pos_train_edge)
@@ -314,33 +321,45 @@ class Trainer:
             pos_test_pred = test_iteration(pos_test_edge)
             neg_test_pred = test_iteration(neg_test_edge)
 
-            # Calculate the results by comparing the inference of
-            # positive and negative samples
-            for K in [10, 50, 100]:
+            # Evaluate
+            train_hits = evaluator.eval(pos_train_pred, neg_valid_pred, K)
+            valid_hits = evaluator.eval(pos_valid_pred, neg_valid_pred, K)
+            test_hits = evaluator.eval(pos_test_pred, neg_test_pred, K)
+
+            # Collect
+            results[f"Hits@{K}"] = (
+                train_hits,
+                valid_hits,
+                test_hits,
+            )
+
+            ### SEPARATED
+            for relation_name, relation in dataset.relation_voc.items():
+
+                pos_train_edge = torch.from_numpy(dataset.train_separated[relation])
+                pos_valid_edge = torch.from_numpy(dataset.valid[relation])
+                neg_valid_edge = torch.from_numpy(dataset.valid_negs[relation])
+                pos_test_edge = torch.from_numpy(dataset.test[relation])
+                neg_test_edge = torch.from_numpy(dataset.test_negs[relation])
+
+                # Run test iterations using the loaded triples
+                pos_train_pred = test_iteration(pos_train_edge)
+                pos_valid_pred = test_iteration(pos_valid_edge)
+                neg_valid_pred = test_iteration(neg_valid_edge)
+                pos_test_pred = test_iteration(pos_test_edge)
+                neg_test_pred = test_iteration(neg_test_edge)
+
+                # Evaluate
                 train_hits = evaluator.eval(pos_train_pred, neg_valid_pred, K)
                 valid_hits = evaluator.eval(pos_valid_pred, neg_valid_pred, K)
                 test_hits = evaluator.eval(pos_test_pred, neg_test_pred, K)
 
+                # Collect
                 results[f"Hits@{K}_{relation_name}"] = (
                     train_hits,
                     valid_hits,
                     test_hits,
                 )
-
-                # Keep track of unseparated metrics as well: weighted average
-                results[f"Hits@{K}"] = [
-                    avg + ((weight * metric) / normaliser)
-                    for avg, metric, weight, normaliser in zip(
-                        results[f"Hits@{K}"],
-                        results[f"Hits@{K}_{relation_name}"],
-                        (len(pos_train_pred), len(pos_valid_pred), len(pos_test_pred)),
-                        (
-                            dataset.num_train_entries,
-                            dataset.num_valid_entries,
-                            dataset.num_test_entries,
-                        ),
-                    )
-                ]
 
         return results
 
