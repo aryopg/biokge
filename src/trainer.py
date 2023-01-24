@@ -241,6 +241,7 @@ class Trainer:
                     "epoch": epoch,
                     "train_loss": train_loss,
                 }
+                print(f"- Loss: {train_loss:.4f}")
                 for key, result in results.items():
                     if key in self.loggers:
                         self.loggers[key].add_result(result)
@@ -253,13 +254,11 @@ class Trainer:
                         }
                     )
 
-                    print(key)
                     print(
-                        f"Epoch: {epoch:02d}, "
-                        f"Loss: {train_loss:.4f}, "
-                        f"Train: {100 * train_hits:.2f}%, "
-                        f"Valid: {100 * valid_hits:.2f}%, "
-                        f"Test: {100 * test_hits:.2f}%"
+                        f"- Train: {100 * train_hits:05.2f}%, "
+                        f"Valid: {100 * valid_hits:05.2f}%, "
+                        f"Test: {100 * test_hits:05.2f}%"
+                        f"  {key}"
                     )
                 wandb.log(wandb_logs)
             wandb.watch(self.model)
@@ -327,7 +326,7 @@ class Trainer:
             test_hits = evaluator.eval(pos_test_pred, neg_test_pred, K)
 
             # Collect
-            results[f"Hits@{K}"] = (
+            results[f"Hits@{K}_TOTAL"] = (
                 train_hits,
                 valid_hits,
                 test_hits,

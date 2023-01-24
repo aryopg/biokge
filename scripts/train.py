@@ -54,9 +54,9 @@ def main():
         wandb.config.update(data_stats)
 
         loggers = {
-            "Hits@10": Logger(outputs_dir, "Hits@10"),
-            "Hits@50": Logger(outputs_dir, "Hits@50"),
-            "Hits@100": Logger(outputs_dir, "Hits@100"),
+            "Hits@10_TOTAL": Logger(outputs_dir, "Hits@10_TOTAL"),
+            "Hits@50_TOTAL": Logger(outputs_dir, "Hits@50_TOTAL"),
+            "Hits@100_TOTAL": Logger(outputs_dir, "Hits@100_TOTAL"),
         }
         trainer = Trainer(
             data_stats["num_entities"],
