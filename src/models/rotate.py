@@ -69,13 +69,7 @@ class RotatE(nn.Module):
         score = self.gamma.item() - score.sum(dim=1)
         return score
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        score_rhs: bool = True,
-        score_lhs: bool = False,
-        score_rel: bool = False,  # for uniformity, but not implemented on RotatE
-    ):
+    def forward(self, x: torch.Tensor, **kwargs):
         lhs = self.entity_embeddings(x[0])
         rel = self.relation_embeddings(x[1])
         rhs = self.entity_embeddings(x[2])
@@ -91,37 +85,15 @@ class RotatE(nn.Module):
         rel_real = torch.cos(phase_relation)
         rel_img = torch.sin(phase_relation)
 
-        if score_rhs:
-            entity_embedding = self.entity_embeddings.weight
-            entity_embedding_real = entity_embedding[:, : self.rank]
-            entity_embedding_img = entity_embedding[:, self.rank :]
+        score_real = lhs_real * rel_real - lhs_img * rel_img
+        score_img = lhs_real * rel_img + lhs_img * rel_real
+        score_real = score_real - rhs_real
+        score_img = score_img - rhs_img
 
-            rhs_score_real = lhs_real * rel_real - lhs_img * rel_img
-            rhs_score_img = lhs_real * rel_img + lhs_img * rel_real
+        score = torch.stack([score_real, score_img], dim=0)
+        score = torch.norm(score, p=2, dim=0)
 
-            rhs_score_real = rhs_score_real.unsqueeze(1) - entity_embedding_real
-            rhs_score_img = rhs_score_img.unsqueeze(1) - entity_embedding_img
-
-            rhs_scores = torch.stack([rhs_score_real, rhs_score_img], dim=0)
-            rhs_scores = torch.norm(rhs_scores, p=2, dim=0)
-
-            rhs_scores = self.gamma.item() - rhs_scores.sum(dim=2)
-        if score_lhs:
-            entity_embedding = self.entity_embeddings.weight
-            entity_embedding_real = entity_embedding[:, : self.rank]
-            entity_embedding_img = entity_embedding[:, self.rank :]
-
-            rel_img = -rel_img
-            lhs_score_real = rel_real * rhs_real - rel_img * rhs_img
-            lhs_score_img = rel_real * rhs_img + rel_img * rhs_real
-
-            lhs_score_real = lhs_score_real.unsqueeze(1) - entity_embedding_real
-            lhs_score_img = lhs_score_img.unsqueeze(1) - entity_embedding_img
-
-            lhs_scores = torch.stack([lhs_score_real, lhs_score_img], dim=0)
-            lhs_scores = torch.norm(lhs_scores, p=2, dim=0)
-
-            lhs_scores = self.gamma.item() - lhs_scores.sum(dim=2)
+        score = self.gamma.item() - score.sum(dim=1)
 
         # Retrieve the model factors wrt the input
         factors = (
@@ -130,9 +102,4 @@ class RotatE(nn.Module):
             torch.sqrt(rhs_real**2 + rhs_img**2),  # right hand side factors
         )
 
-        if score_rhs and score_lhs:
-            return (rhs_scores, lhs_scores), factors
-        elif score_rhs:
-            return rhs_scores, factors
-        elif score_lhs:
-            return lhs_scores, factors
+        return score, factors
