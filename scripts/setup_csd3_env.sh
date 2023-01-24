@@ -8,4 +8,4 @@ conda init
 source ~/.bashrc
 
 # Create new env
-conda create -f environment.yaml
+conda env create -f environment.yaml
