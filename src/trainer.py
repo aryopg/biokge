@@ -10,12 +10,15 @@ import wandb
 from .configs import Configs
 from .models.complex import ComplEx
 from .models.regularizers import F2, N3, Regularizer
+from .models.rotate import RotatE
 from .utils.logger import Logger
 
 REGULARIZER_MAP = {
     "n3": N3,
     "f2": F2,
 }
+
+MODELS_MAP = {"complex": ComplEx, "rotate": RotatE}
 
 
 class Trainer:
@@ -73,14 +76,14 @@ class Trainer:
         Returns:
             nn.Module: The KGE model to be trained
         """
-        if model_configs.model_type == "complex":
-            return ComplEx(
-                num_entities,
-                num_relations,
-                model_configs.hidden_size,
-                model_configs.init_range,
-                model_configs.init_size,
-            ).to(self.device)
+
+        return MODELS_MAP[model_configs.model_type](
+            num_entities,
+            num_relations,
+            model_configs.hidden_size,
+            model_configs.init_range,
+            model_configs.init_size,
+        ).to(self.device)
 
     def setup_optimizer(self, optimizer: str) -> torch.optim.Optimizer:
         """
