@@ -2,76 +2,58 @@ import argparse
 import os
 import sys
 
+import pykeen.pipeline
+import pykeen.utils
+
 sys.path.append(os.getcwd())
 
 from dotenv import load_dotenv
 
-load_dotenv("env/.env")
+load_dotenv(".env")
 
-import wandb
-
+from src import utils
 from src.configs import Configs
-from src.datasets.BioKG import BioKGDataset
-from src.evaluator import Evaluator
-from src.trainer import Trainer
-from src.utils import common_utils
-from src.utils.logger import Logger
 
 
 def argument_parser():
     parser = argparse.ArgumentParser(
         description="Protein Knowledge Graph Embedding Project"
     )
-    parser.add_argument("--config_filepath", type=str, required=True)
+    parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--log_to_wandb", action="store_true")
     args = parser.parse_args()
     return args
 
 
 def main():
+
+    # Get args and configs
     args = argument_parser()
-    configs = Configs(**common_utils.load_yaml(args.config_filepath))
+    configs = Configs(**utils.load_yaml(args.config))
 
-    common_utils.setup_random_seed(configs.training_config.random_seed)
-    outputs_dir, checkpoint_path = common_utils.setup_experiment_folder(
-        os.path.join(os.getcwd(), configs.training_config.outputs_dir)
+    # Run
+    result = pykeen.pipeline.pipeline(
+        random_seed=configs.training_config.random_seed,
+        # Dataset
+        dataset=configs.dataset_config.name,
+        # Model
+        model=configs.model_config.name,
+        # Training
+        training_loop=configs.training_config.training_loop,
+        epochs=configs.training_config.epochs,
+        # Evaluation
+        result_tracker="wandb",
+        result_tracker_kwargs=dict(
+            project="kge_ppa",
+            entity="protein-kge",
+            mode="online" if args.log_to_wandb else "disabled",
+        ),
+        stopper="early",
+        stopper_kwargs=dict(frequency=1, patience=5, relative_delta=0.002),
     )
-    device = common_utils.setup_device(configs.training_config.device)
 
-    wandb.init(
-        project="kge_ppa",
-        entity="protein-kge",
-        mode="online" if args.log_to_wandb else "disabled",
-    )
-    wandb.config.update(configs.dict())
-
-    if configs.dataset_config.dataset_name == "dsi-bdi-biokg":
-        dataset = BioKGDataset(configs.dataset_config)
-        data_stats = {
-            "num_entities": dataset.num_entities,
-            "num_relations": dataset.num_relations,
-        }
-        wandb.config.update(data_stats)
-
-        loggers = {
-            "Hits@10_TOTAL": Logger(outputs_dir, "Hits@10_TOTAL"),
-            "Hits@50_TOTAL": Logger(outputs_dir, "Hits@50_TOTAL"),
-            "Hits@100_TOTAL": Logger(outputs_dir, "Hits@100_TOTAL"),
-        }
-        trainer = Trainer(
-            dataset.num_entities,
-            dataset.num_relations,
-            configs.training_config,
-            configs.model_config,
-            outputs_dir,
-            checkpoint_path,
-            loggers,
-            device,
-        )
-
-        trainer.train(dataset, Evaluator("dsi-bdi-biokg"))
-    else:
-        raise NotImplementedError
+    # Save results
+    result.save_to_directory("outputs")
 
 
 if __name__ == "__main__":

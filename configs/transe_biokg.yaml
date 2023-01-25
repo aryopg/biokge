@@ -1,24 +1,8 @@
 dataset_config:
-  dataset_name: "dsi-bdi-biokg"
-  datasets_dir: "datasets/biokg"
-  train_frac: 0.8
-  valid_frac: 0.1
-  neg_sampling_strat: "uniform"
+  name: "biokg"
 model_config:
-  model_type: "transe"
-  embedding_size: 256
+  name: "TransE"
 training_config:
-  epochs: 100
-  batch_size: 256
-  optimizer: "adagrad"
-  learning_rate: 0.08
-  loss_fn: "negsampling"
-  neg_sampling_rate: 1
-  grad_accumulation_step: 1
-  score_rhs: True
-  score_lhs: True
-  score_rel: False
-  eval_steps: 1
-  device: 0
-  random_seed: 1234
-  outputs_dir: "outputs"
+  random_seed: 42
+  training_loop: sLCWA 
+  epochs: 20
