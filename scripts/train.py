@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 
+import pykeen.constants
 import pykeen.pipeline
 import pykeen.utils
 
@@ -20,6 +21,7 @@ def argument_parser():
         description="Protein Knowledge Graph Embedding Project"
     )
     parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--data_path", type=str, required=True, default=os.getcwd())
     parser.add_argument("--log_to_wandb", action="store_true")
     args = parser.parse_args()
     return args
@@ -36,6 +38,7 @@ def main():
         random_seed=configs.training_config.random_seed,
         # Dataset
         dataset=configs.dataset_config.name,
+        dataset_kwargs=dict(cache_root=args.data_path),
         # Model
         model=configs.model_config.name,
         # Training
