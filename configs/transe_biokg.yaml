@@ -5,13 +5,13 @@ dataset_config:
   valid_frac: 0.1
   neg_sampling_strat: "uniform"
 model_config:
-  model_type: "rotate"
+  model_type: "transe"
   embedding_size: 256
 training_config:
-  epochs: 20
+  epochs: 100
   batch_size: 256
   optimizer: "adagrad"
-  learning_rate: 0.05
+  learning_rate: 0.08
   loss_fn: "negsampling"
   neg_sampling_rate: 1
   grad_accumulation_step: 1

@@ -32,11 +32,11 @@ def main():
     args = argument_parser()
     configs = Configs(**common_utils.load_yaml(args.config_filepath))
 
-    common_utils.setup_random_seed(configs.training_configs.random_seed)
+    common_utils.setup_random_seed(configs.training_config.random_seed)
     outputs_dir, checkpoint_path = common_utils.setup_experiment_folder(
-        os.path.join(os.getcwd(), configs.training_configs.outputs_dir)
+        os.path.join(os.getcwd(), configs.training_config.outputs_dir)
     )
-    device = common_utils.setup_device(configs.training_configs.device)
+    device = common_utils.setup_device(configs.training_config.device)
 
     wandb.init(
         project="kge_ppa",
@@ -45,8 +45,8 @@ def main():
     )
     wandb.config.update(configs.dict())
 
-    if configs.dataset_configs.dataset_name == "dsi-bdi-biokg":
-        dataset = BioKGDataset(configs.dataset_configs)
+    if configs.dataset_config.dataset_name == "dsi-bdi-biokg":
+        dataset = BioKGDataset(configs.dataset_config)
         data_stats = {
             "num_entities": dataset.num_entities,
             "num_relations": dataset.num_relations,
@@ -59,9 +59,10 @@ def main():
             "Hits@100_TOTAL": Logger(outputs_dir, "Hits@100_TOTAL"),
         }
         trainer = Trainer(
-            data_stats["num_entities"],
-            data_stats["num_relations"],
-            configs,
+            dataset.num_entities,
+            dataset.num_relations,
+            configs.training_config,
+            configs.model_config,
             outputs_dir,
             checkpoint_path,
             loggers,

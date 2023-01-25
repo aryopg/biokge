@@ -1,19 +1,20 @@
-dataset_configs:
+dataset_config:
   dataset_name: "dsi-bdi-biokg"
   datasets_dir: "datasets/biokg"
   train_frac: 0.8
   valid_frac: 0.1
   neg_sampling_strat: "uniform"
-model_configs:
+model_config:
   model_type: "complex"
-  hidden_size: 256
+  embedding_size: 256
+training_config:
+  epochs: 20
+  batch_size: 256
   regularizers:
     - type: n3
       coeff: 1e-2
     - type: f2
       coeff: 0
-  dropout: 0.0
-  batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
   loss_fn: "1vsAll"
@@ -21,8 +22,6 @@ model_configs:
   score_rhs: True
   score_lhs: True
   score_rel: True
-training_configs:
-  epochs: 20
   eval_steps: 1
   device: 0
   random_seed: 1234

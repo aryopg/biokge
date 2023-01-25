@@ -3,24 +3,21 @@ from typing import List
 import torch
 from torch import nn
 
+from ..configs import ModelConfig
+
 
 class ComplEx(nn.Module):
-    def __init__(
-        self,
-        entity_size: int,
-        relation_size: int,
-        rank: int,
-        init_range: float = 0.1,
-        init_size: float = 1e-3,
-    ):
+    def __init__(self, entity_size: int, relation_size: int, config: ModelConfig):
         super(ComplEx, self).__init__()
         self.entity_size = entity_size
-        self.rank = rank
+        self.rank = config.embedding_size
 
-        self.entity_embeddings = nn.Embedding(entity_size, 2 * rank)
-        self.relation_embeddings = nn.Embedding(relation_size, 2 * rank)
+        self.entity_embeddings = nn.Embedding(entity_size, 2 * config.embedding_size)
+        self.relation_embeddings = nn.Embedding(
+            relation_size, 2 * config.embedding_size
+        )
 
-        self.init_weights(init_range, init_size)
+        self.init_weights(config.init_range, config.init_size)
 
     def init_weights(self, init_range=1, init_size=1e-3) -> None:
         self.entity_embeddings.weight.data.uniform_(-init_range, init_range)

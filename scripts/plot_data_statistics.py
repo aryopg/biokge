@@ -1,11 +1,11 @@
+import argparse
 import os
 import sys
-import argparse
 
 sys.path.append(os.getcwd())
 
-from src.datasets.BioKG import BioKGDataset
 from src.configs import Configs
+from src.datasets.BioKG import BioKGDataset
 from src.utils import common_utils
 
 
@@ -21,7 +21,7 @@ def argument_parser():
 def main():
     args = argument_parser()
     configs = Configs(**common_utils.load_yaml(args.config_filepath))
-    dataset = BioKGDataset(configs.dataset_configs)
+    dataset = BioKGDataset(configs.dataset_config)
     dataset.plot_statistics()
 
 

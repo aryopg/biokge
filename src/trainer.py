@@ -3,17 +3,16 @@ from typing import Dict, List
 import numpy
 import torch
 import tqdm
+import wandb
 from torch import nn
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-import wandb
-
-from .configs import Configs
+from .configs import ModelConfig, TrainingConfig
 from .evaluator import Evaluator
 from .models.complex import ComplEx
 from .models.regularizers import F2, N3, Regularizer
 from .models.rotate import RotatE
+from .models.transe import TransE
 from .utils.logger import Logger
 
 REGULARIZER_MAP = {
@@ -21,7 +20,7 @@ REGULARIZER_MAP = {
     "f2": F2,
 }
 
-MODELS_MAP = {"complex": ComplEx, "rotate": RotatE}
+MODELS_MAP = {"complex": ComplEx, "rotate": RotatE, "transe": TransE}
 
 
 class Trainer:
@@ -29,7 +28,8 @@ class Trainer:
         self,
         num_entities: int,
         num_relations: int,
-        configs: Configs,
+        training_config: TrainingConfig,
+        model_config: ModelConfig,
         outputs_dir: str,
         checkpoint_path: str,
         loggers: Dict[str, Logger] = None,
@@ -42,7 +42,8 @@ class Trainer:
         Args:
             num_entities (int): Number of entities in the KG to initialize the model
             num_relations (int): Number of relations in the KG to initialize the model
-            configs (Configs): Configurations of the training
+            training_config (TrainingConfig): Training configuration
+            model_config (ModelConfig): Model configuration
             outputs_dir (str): Directory that stores the training weights and logs
             checkpoint_path (str): Path to the checkpoint directory
             loggers (Dict[str, Logger], optional): Logger object to record the
@@ -50,24 +51,19 @@ class Trainer:
             device (torch.device, optional): The dedicated deviice used for
                 training. Defaults to None.
         """
-        self.configs = configs
+        self.config = training_config
         self.device = device
-
-        self.model = self.setup_model(
-            num_entities, num_relations, configs.model_configs
-        )
-        self.optimizer = self.setup_optimizer(configs.model_configs.optimizer)
-        self.loss_fn = self.setup_loss_function(configs.model_configs.loss_fn)
-        self.regularizers = self.setup_regularizers(configs.model_configs.regularizers)
-        self.grad_accumulation_step = configs.model_configs.grad_accumulation_step
-
+        self.model = self.setup_model(num_entities, num_relations, model_config)
+        self.optimizer = self.setup_optimizer()
+        self.loss_fn = self.setup_loss_function()
+        self.regularizers = self.setup_regularizers()
         self.outputs_dir = outputs_dir
         self.checkpoint_path = checkpoint_path
         self.loggers = loggers
         self.silent = silent
 
     def setup_model(
-        self, num_entities: int, num_relations: int, model_configs: dict
+        self, num_entities: int, num_relations: int, config: ModelConfig
     ) -> nn.Module:
         """
         Setup model based on the model type, number of entities and relations
@@ -76,57 +72,47 @@ class Trainer:
         Args:
             num_entities (int): Number of entities in the KG
             num_relations (int): Number of relations in the KG
-            model_configs (dict): Model configurations
+            config (ModelConfig): Model configuration
 
         Returns:
             nn.Module: The KGE model to be trained
         """
 
-        return MODELS_MAP[model_configs.model_type](
-            num_entities,
-            num_relations,
-            model_configs.hidden_size,
-            model_configs.init_range,
-            model_configs.init_size,
-        ).to(self.device)
+        return MODELS_MAP[config.model_type](num_entities, num_relations, config).to(
+            self.device
+        )
 
-    def setup_optimizer(self, optimizer: str) -> torch.optim.Optimizer:
+    def setup_optimizer(self) -> torch.optim.Optimizer:
         """
         Setup optimizer based on the optimizer name
-
-        Args:
-            optimizer (str): optimizer name
 
         Returns:
             torch.optim.Optimizer: Optimizer class
         """
-        if optimizer == "adam":
+        if self.config.optimizer == "adam":
             return torch.optim.Adam(
                 list(self.model.parameters()),
-                lr=self.configs.model_configs.learning_rate,
+                lr=self.config.learning_rate,
             )
-        elif optimizer == "adagrad":
+        elif self.config.optimizer == "adagrad":
             return torch.optim.Adagrad(
                 list(self.model.parameters()),
-                lr=self.configs.model_configs.learning_rate,
+                lr=self.config.learning_rate,
             )
 
-    def setup_regularizers(self, regularizers_list: List[dict]) -> List[Regularizer]:
+    def setup_regularizers(self) -> List[Regularizer]:
         """
         Setup regularizers based on the regularizer names
-
-        Args:
-            regularizers_list (List[dict]): List of regularizer configs
 
         Returns:
             List[Regularizer]: List of regularizers that will be used
         """
         regularizers = []
-        for regularizer in regularizers_list:
+        for regularizer in self.config.regularizers:
             regularizers += [REGULARIZER_MAP[regularizer.type](regularizer.coeff)]
         return regularizers
 
-    def setup_loss_function(self, loss_fn: str) -> nn.Module:
+    def setup_loss_function(self) -> nn.Module:
         """
         Setup loss function based on the loss function name
 
@@ -136,10 +122,10 @@ class Trainer:
         Returns:
             nn.Module: Loss function
         """
-        if loss_fn == "1vsAll":
+        if self.config.loss_fn == "1vsAll":
             return nn.CrossEntropyLoss()
-        elif loss_fn == "negsampling":
-            return nn.BCEWithLogitsLoss()
+        elif self.config.loss_fn == "negsampling":
+            return nn.MarginRankingLoss(margin=1.0)
 
     def training_epoch(self, dataset, epoch) -> float:
         """
@@ -161,7 +147,7 @@ class Trainer:
         ## Create DataLoader for sampling
         train_data_loader = DataLoader(
             range(pos_train_edge.size(1)),
-            self.configs.model_configs.batch_size,
+            self.config.batch_size,
             shuffle=True,
         )
 
@@ -181,49 +167,43 @@ class Trainer:
             # Get right hand and left hand predictions (symmetry)
             predictions, factors = self.model(
                 edge,
-                score_rhs=self.configs.model_configs.score_rhs,
-                score_lhs=self.configs.model_configs.score_lhs,
-                score_rel=self.configs.model_configs.score_rel,
+                score_rhs=self.config.score_rhs,
+                score_lhs=self.config.score_lhs,
+                score_rel=self.config.score_rel,
             )
 
-            if self.configs.model_configs.loss_fn == "negsampling":
+            if self.config.loss_fn == "negsampling":
+
                 # Generate negative samples
-                negs = dataset.generate_negs_tensor(
-                    edge, self.configs.model_configs.neg_sampling_rate
-                )
+                negs = dataset.generate_negs_tensor(edge, self.config.neg_sampling_rate)
+
                 # Score generated samples
-                neg_predictions, factors = self.model(
+                neg_predictions, _ = self.model(
                     negs,
                     score_rhs=False,
                     score_lhs=False,
                     score_rel=False,
                 )
 
-                positive_sample_loss = self.loss_fn(
-                    predictions, torch.ones_like(predictions)
-                )
-                negative_sample_loss = self.loss_fn(
-                    neg_predictions, torch.zeros_like(neg_predictions)
-                )
-
-                loss_fit = (positive_sample_loss + negative_sample_loss) / 2
+                loss_fit = torch.relu(1.0 + predictions - neg_predictions).mean()
 
                 # Sum loss
-            elif self.configs.model_configs.loss_fn == "1vsAll":
+            elif self.config.loss_fn == "1vsAll":
+
                 # Model loss is a summation of Right hand, Relation, Left hand losses
                 loss_fit = 0
 
                 # Right hand side loss
-                if self.configs.model_configs.score_rhs:
+                if self.config.score_rhs:
                     rhs_loss_fit = self.loss_fn(predictions[0], edge[2].squeeze())
                     loss_fit += rhs_loss_fit
                 # Relationship loss
-                if self.configs.model_configs.score_rel:
+                if self.config.score_rel:
                     rel_loss_fit = self.loss_fn(predictions[1], edge[1].squeeze())
                     loss_fit += rel_loss_fit
                 # Left hand side loss
-                if self.configs.model_configs.score_lhs:
-                    if self.configs.model_configs.score_rel:
+                if self.config.score_lhs:
+                    if self.config.score_rel:
                         lhs_loss_fit = self.loss_fn(predictions[2], edge[0].squeeze())
                     else:
                         lhs_loss_fit = self.loss_fn(predictions[1], edge[0].squeeze())
@@ -239,22 +219,22 @@ class Trainer:
             loss = loss_fit + loss_regs
 
             # Average by gradient accumulation step if any
-            loss = loss / self.grad_accumulation_step
+            loss = loss / self.config.grad_accumulation_step
 
             # Compute loss
             loss.backward()
 
             # Run backprop if iteration falls on the gradient accumulation step
-            if ((iteration + 1) % self.grad_accumulation_step == 0) or (
+            if ((iteration + 1) % self.config.grad_accumulation_step == 0) or (
                 (iteration + 1) == len(train_data_loader)
             ):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
             # Record epoch loss
-            if self.configs.model_configs.loss_fn == "negsampling":
+            if self.config.loss_fn == "negsampling":
                 num_examples = predictions.size(0)
-            elif self.configs.model_configs.loss_fn == "1vsAll":
+            elif self.config.loss_fn == "1vsAll":
                 num_examples = predictions[0].size(0)
             total_loss += loss.item() * num_examples
             total_examples += num_examples
@@ -262,10 +242,10 @@ class Trainer:
         return total_loss / total_examples
 
     def train(self, dataset, evaluator):
-        for epoch in range(1, 1 + self.configs.training_configs.epochs):
+        for epoch in range(1, 1 + self.config.epochs):
             train_loss = self.training_epoch(dataset, epoch)
 
-            if epoch % self.configs.training_configs.eval_steps == 0:
+            if epoch % self.config.eval_steps == 0:
                 results = self.test(dataset, evaluator)
 
                 wandb_logs = {
@@ -317,9 +297,7 @@ class Trainer:
             return torch.cat(
                 [
                     self.model.score(edge[:, perm].to(self.device)).squeeze().cpu()
-                    for perm in DataLoader(
-                        range(edge.size(1)), self.configs.model_configs.batch_size
-                    )
+                    for perm in DataLoader(range(edge.size(1)), self.config.batch_size)
                 ],
                 dim=0,
             )
