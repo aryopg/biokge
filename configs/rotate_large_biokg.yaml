@@ -1,0 +1,30 @@
+dataset_configs:
+  dataset_name: "dsi-bdi-biokg"
+  datasets_dir: "datasets/biokg"
+  train_frac: 0.8
+  valid_frac: 0.1
+  neg_sampling_strat: "bernoulli"
+model_configs:
+  model_type: "rotate"
+  hidden_size: 512
+  regularizers:
+    - type: n3
+      coeff: 0
+    - type: f2
+      coeff: 0
+  dropout: 0.0
+  batch_size: 256
+  optimizer: "adagrad"
+  learning_rate: 0.05
+  loss_fn: "negsampling"
+  grad_accumulation_step: 1
+  score_rhs: True
+  score_lhs: True
+  score_rel: False
+  neg_sampling_rate: 1
+training_configs:
+  epochs: 50
+  eval_steps: 1
+  device: 0
+  random_seed: 1234
+  outputs_dir: "outputs"
