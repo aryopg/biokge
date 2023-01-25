@@ -3,7 +3,7 @@ dataset_configs:
   datasets_dir: "datasets/biokg"
   train_frac: 0.8
   valid_frac: 0.1
-  neg_sampling_strat: "bernoulli"
+  neg_sampling_strat: "uniform"
 model_configs:
   model_type: "complex"
   hidden_size: 256
@@ -16,7 +16,7 @@ model_configs:
   batch_size: 256
   optimizer: "adagrad"
   learning_rate: 0.1
-  loss_fn: "crossentropy"
+  loss_fn: "1vsAll"
   grad_accumulation_step: 1
   score_rhs: True
   score_lhs: True

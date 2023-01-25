@@ -31,6 +31,8 @@ class ModelConfigs(BaseModel):
     score_rhs: bool = True
     score_lhs: bool = True
     score_rel: bool = False
+    neg_sampling: str = "none"
+    neg_sampling_rate: int = 10
 
 
 class TrainingConfigs(BaseModel):

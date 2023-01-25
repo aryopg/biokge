@@ -104,8 +104,14 @@ class BioKGDataset:
             self.num_test_entries = len(relation_test)
 
             # Generate negatives
-            relation_valid_negs = self.generate_negs(relation_valid, relation)
-            relation_test_negs = self.generate_negs(relation_test, relation)
+            n_neg = math.ceil(
+                100 / len(relation_valid)
+            )  # calculate specific number of negatives to generate, ensuring at least 100
+            relation_valid_negs = self.generate_negs(relation_valid, relation, n_neg)
+            n_neg = math.ceil(
+                100 / len(relation_test)
+            )  # calculate specific number of negatives to generate, ensuring at least 100
+            relation_test_negs = self.generate_negs(relation_test, relation, n_neg)
 
             # Store as numpy arrays
             self.train_separated[relation] = relation_train.to_numpy().T
@@ -117,12 +123,12 @@ class BioKGDataset:
         # Also store combined train for actual training
         self.train = numpy.hstack(list(self.train_separated.values()))
 
-    def generate_negs(self, triples, relation):
+    def generate_negs(self, triples, relation, n_neg):
         """
         Switch case for negative sampling strategies
         """
         if self.neg_sampling_strat == "uniform":
-            return self.generate_negs_uniform(triples, relation)
+            return self.generate_negs_uniform(triples, relation, n_neg)
         elif self.neg_sampling_strat == "bernoulli":
 
             # Calculate Bernoulli probs once
@@ -146,12 +152,12 @@ class BioKGDataset:
                     for relation, hpt, tph in zip(self.relation_voc.values(), hpt, tph)
                 }
 
-            return self.generate_negs_bernoulli(triples, relation)
+            return self.generate_negs_bernoulli(triples, relation, n_neg)
         else:
             print("Unknown negative sampling strategy, using uniform.")
-            return self.generate_negs_uniform(triples, relation)
+            return self.generate_negs_uniform(triples, relation, n_neg)
 
-    def generate_negs_uniform(self, triples, relation):
+    def generate_negs_uniform(self, triples, relation, n_neg):
         """
         Uniformly samples negatives for a given set of triples
         -> code after torchkge: https://torchkge.readthedocs.io/en/latest/_modules/torchkge/sampling.html#UniformNegativeSampler
@@ -159,13 +165,11 @@ class BioKGDataset:
         Args:
         - entries (pandas, Nx3): triples to generate negative samples for
         - relation (int): relation encoding
+        - n_neg (int): number of negatives to generate per sample
 
         Returns:
         - negative samples (numpy, (N,3))
         """
-        n_neg = math.ceil(
-            100 / len(triples)
-        )  # calculate specific number of negatives to generate, ensuring at least 100
 
         # Initialise negative subject and object arrays
         neg_subjects = triples["subject"].to_numpy().repeat(n_neg)
@@ -188,7 +192,7 @@ class BioKGDataset:
             ]
         ).T
 
-    def generate_negs_bernoulli(self, triples, relation):
+    def generate_negs_bernoulli(self, triples, relation, n_neg):
         """
         Samples negatives for a given set of triples using the Bernoulli strategy
         -> code after torchkge: https://torchkge.readthedocs.io/en/latest/_modules/torchkge/sampling.html#UniformNegativeSampler
@@ -196,13 +200,11 @@ class BioKGDataset:
         Args:
         - entries (pandas, Nx3): triples to generate negative samples for
         - relation (int): relation encoding
+        - n_neg (int): number of negatives to generate per sample
 
         Returns:
         - negative samples (numpy, (N,3))
         """
-        n_neg = math.ceil(
-            100 / len(triples)
-        )  # calculate specific number of negatives to generate, ensuring at least 100
 
         # Initialise negative subject and object arrays
         neg_subjects = triples["subject"].to_numpy().repeat(n_neg)
@@ -227,7 +229,117 @@ class BioKGDataset:
             ]
         ).T
 
-    def plot_statistics(self):
+    def generate_negs_tensor(self, edge, n_neg):
+        """
+        Switch case for negative sampling strategies
+        Suitable for edge tensors during training
+        """
+        if self.neg_sampling_strat == "uniform":
+            return self.generate_negs_uniform_tensor(edge, n_neg)
+        elif self.neg_sampling_strat == "bernoulli":
+
+            # Calculate Bernoulli probs once
+            if not hasattr(self, "bernoulli_probs"):
+                raise Exception(
+                    "bernouli probs not calculated during preprocessing but used in training"
+                )
+
+            return self.generate_negs_bernoulli_tensor(edge, n_neg)
+        else:
+            print("Unknown negative sampling strategy, using uniform.")
+            return self.generate_negs_uniform_tensor(edge, n_neg)
+
+    def generate_negs_uniform_tensor(self, edge, n_neg):
+        """
+        Uniformly samples negatives for a given set of triples
+        Suitable for edge tensors during training
+
+        Args:
+        - edge (pandas, Nx3): triples to generate negative samples for
+        - n_neg (int): number of negatives to generate per sample
+
+        Returns:
+        - negative samples (numpy, (N,3))
+        """
+
+        # Initialise negative subject and object arrays
+        neg_subjects = edge[0].repeat(n_neg)
+        neg_objects = edge[2].repeat(n_neg)
+        neg_relationships = edge[1].repeat(n_neg)
+
+        # Randomly corrupt subject and/or object
+        mask = torch.bernoulli(
+            torch.ones(size=(len(edge[2]) * n_neg,)).to(edge[1].device) / 2
+        ).double()
+        n_h_cor = int(mask.sum().item())
+        neg_subjects[mask == 1] = torch.randint(
+            0, self.num_entities, (n_h_cor,), device=edge[1].device
+        )
+
+        neg_objects[mask == 0] = torch.randint(
+            0,
+            self.num_entities,
+            (len(edge[0]) * n_neg - n_h_cor,),
+            device=edge[1].device,
+        )
+
+        # Return negative triples
+        return torch.stack(
+            [
+                neg_subjects,
+                neg_relationships,
+                neg_objects,
+            ]
+        )
+
+    def generate_negs_bernoulli_tensor(self, edge, n_neg):
+        """
+        Samples negatives for a given set of triples using the Bernoulli strategy
+        Suitable for edge tensors during training
+
+        Args:
+        - edge (pandas, Nx3): triples to generate negative samples for
+        - n_neg (int): number of negatives to generate per sample
+
+        Returns:
+        - negative samples (numpy, (N,3))
+        """
+
+        # Initialise negative subject and object arrays
+        neg_subjects = edge[0].repeat(n_neg)
+        neg_objects = edge[2].repeat(n_neg)
+        neg_relationships = edge[1].repeat(n_neg)
+
+        # Randomly corrupt subject and/or object
+        mask = torch.bernoulli(
+            neg_relationships.float()
+            .cpu()
+            .apply_(lambda val: self.bernoulli_probs.get(val))
+            .to(edge[1].device)
+        ).int()
+
+        n_h_cor = int(mask.sum().item())
+        neg_subjects[mask == 1] = torch.randint(
+            0, self.num_entities, (n_h_cor,), device=edge[1].device
+        )
+
+        neg_objects[mask == 0] = torch.randint(
+            0,
+            self.num_entities,
+            (len(edge[0]) * n_neg - n_h_cor,),
+            device=edge[1].device,
+        )
+
+        # Return negative triples
+        return torch.stack(
+            [
+                neg_subjects,
+                neg_relationships,
+                neg_objects,
+            ]
+        )
+
+    def plot_statistics(self, save_location):
         """
         Plot pos/neg/false neg count per relation
         """
