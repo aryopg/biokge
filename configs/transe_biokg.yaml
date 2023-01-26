@@ -1,7 +1,7 @@
 dataset_config:
-  name: "biokg"
+  name: biokg
 model_config:
-  name: "TransE"
+  name: TransE
 training_config:
   random_seed: 42
   training_loop: sLCWA 

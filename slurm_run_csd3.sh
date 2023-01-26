@@ -14,39 +14,31 @@ echo "Job running on ${SLURM_JOB_NODELIST}"
 dt=$(date '+%d/%m/%Y %H:%M:%S')
 echo "Job started: $dt"
 
-## Load required modules
+# Load required modules
 module load cuda/10.2 cudnn/7.6_cuda-10.2
 
-## Set up scratch working folder
+# Set up scratch working folder
 SCRATCH_HOME=/rds/user/${USER}/hpc-work/kge_playground
 mkdir -p ${SCRATCH_HOME}
 
-# Data
-DATA_DIR=${SCRATCH_HOME}/data/
-mkdir -p ${SCRATCH_HOME}
-
-# Outputs
-OUTPUT_DIR=${SCRATCH_HOME}/outputs/
-
-## Activate env
+# Activate env
 source ~/.bashrc
 conda activate kge_playground
 
-## Run
+# Run
 echo "Running experiment"
+PYSTOW_HOME=${SCRATCH_HOME} \
 python scripts/train.py \
 --config=$1 \
 --log_to_wandb \
---data_path=${DATA_DIR}
---output_path=${OUTPUT_DIR}
+--output_path=${SCRATCH_HOME}/outputs
 
-## Get outputs
-OUTPUT_HOME=${PWD}/outputs/
-mkdir -p ${OUTPUT_HOME}
-rsync --archive --update --compress --progress ${OUTPUT_DIR} ${OUTPUT_HOME}
+# Get outputs
+mkdir -p ${PWD}/outputs
+rsync --archive --update --compress --progress ${SCRATCH_HOME}/outputs ${PWD}/outputs
 
-## Cleanup
-rm -rf ${OUTPUT_DIR} ${DATA_DIR}
+# Cleanup
+rm -rf ${SCRATCH_HOME}
 
 echo ""
 echo "============"

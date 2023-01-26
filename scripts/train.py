@@ -22,15 +22,8 @@ def argument_parser():
     )
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument(
-        "--data_path",
-        type=str,
-        required=True,
-        default=os.path.join(os.getcwd(), "data"),
-    )
-    parser.add_argument(
         "--output_path",
         type=str,
-        required=True,
         default=os.path.join(os.getcwd(), "outputs"),
     )
     parser.add_argument("--log_to_wandb", action="store_true")
@@ -49,7 +42,6 @@ def main():
         random_seed=configs.training_config.random_seed,
         # Dataset
         dataset=configs.dataset_config.name,
-        dataset_kwargs=dict(cache_root=args.data_path),
         # Model
         model=configs.model_config.name,
         # Training
