@@ -9,11 +9,14 @@ class DatasetConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     name: str
+    embedding_dim: int
 
 
 class TrainingConfig(BaseModel):
     random_seed: int
     training_loop: str
+    learning_rate: float
+    num_negs_per_pos: int
     epochs: int
 
 

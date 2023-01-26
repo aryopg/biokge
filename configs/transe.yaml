@@ -1,0 +1,11 @@
+dataset_config:
+  name: biokg
+model_config:
+  name: TransE
+  embedding_dim: 378
+training_config:
+  random_seed: 42
+  training_loop: sLCWA 
+  learning_rate: 0.078
+  num_negs_per_pos: 91
+  epochs: 540

@@ -44,10 +44,17 @@ def main():
         dataset=configs.dataset_config.name,
         # Model
         model=configs.model_config.name,
+        model_kwargs=dict(embedding_dim=configs.model_config.embedding_dim),
         # Training
         training_loop=configs.training_config.training_loop,
         epochs=configs.training_config.epochs,
+        optimizer_kwargs=dict(lr=configs.training_config.learning_rate),
+        negative_sampler_kwargs=dict(
+            num_negs_per_pos=configs.training_config.num_negs_per_pos
+        ),
         # Evaluation
+        evaluator_kwargs=dict(filtered=True),  # filter false negatives
+        use_testing_data=False,
         result_tracker="wandb",
         result_tracker_kwargs=dict(
             project="kge_ppa",

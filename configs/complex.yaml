@@ -1,0 +1,11 @@
+dataset_config:
+  name: biokg
+model_config:
+  name: ComplEx
+  embedding_dim: 422
+training_config:
+  random_seed: 42
+  training_loop: sLCWA 
+  learning_rate: 0.058
+  num_negs_per_pos: 81
+  epochs: 600
