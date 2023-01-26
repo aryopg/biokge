@@ -21,7 +21,18 @@ def argument_parser():
         description="Protein Knowledge Graph Embedding Project"
     )
     parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=True, default=os.getcwd())
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        required=True,
+        default=os.path.join(os.getcwd(), "data"),
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        required=True,
+        default=os.path.join(os.getcwd(), "outputs"),
+    )
     parser.add_argument("--log_to_wandb", action="store_true")
     args = parser.parse_args()
     return args
@@ -56,7 +67,7 @@ def main():
     )
 
     # Save results
-    result.save_to_directory("outputs")
+    result.save_to_directory(args.output_path)
 
 
 if __name__ == "__main__":

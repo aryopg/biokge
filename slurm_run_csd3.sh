@@ -14,42 +14,39 @@ echo "Job running on ${SLURM_JOB_NODELIST}"
 dt=$(date '+%d/%m/%Y %H:%M:%S')
 echo "Job started: $dt"
 
-# Load required modules
-module load cuda/11.2 cudnn/8.1_cuda-11.2
+## Load required modules
+module load cuda/10.2 cudnn/7.6_cuda-10.2
 
-# Set up scratch working folder
-SCRATCH_DISK=/rds/user/
-SCRATCH_HOME=${SCRATCH_DISK}/${USER}/hpc-work
+## Set up scratch working folder
+SCRATCH_HOME=/rds/user/${USER}/hpc-work/kge_playground
 mkdir -p ${SCRATCH_HOME}
 
-# Copy data to scratch working folder
-echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
-src_path=/home/${USER}/kge-playground/datasets/biokg
-dest_path=${SCRATCH_HOME}/kge-playground/datasets/biokg
-mkdir -p ${dest_path}  # make it if required
-rsync --archive --update --compress --progress ${src_path}/ ${dest_path}
-
-# Activate env
-CONDA_ENV_NAME=kge_playground
-echo "Setting up conda environment: ${CONDA_ENV_NAME}"
-source ~/.bashrc
-conda activate ${CONDA_ENV_NAME}
-
-# Run
-echo "Running experiment"
-LD_LIBRARY_PATH=/rds/user/$USER/hpc-work/lib/python3.8/site-packages/torch/lib/nvidia/cublas/lib/:$LD_LIBRART_PATH \
-python scripts/train.py \
---config_filepath=$1 \
---log_to_wandb
+# Data
+DATA_DIR=${SCRATCH_HOME}/data/
+mkdir -p ${SCRATCH_HOME}
 
 # Outputs
-OUTPUT_DIR=${SCRATCH_HOME}/kge-playground/outputs/
-OUTPUT_HOME=${PWD}/exps/
+OUTPUT_DIR=${SCRATCH_HOME}/outputs/
+
+## Activate env
+source ~/.bashrc
+conda activate kge_playground
+
+## Run
+echo "Running experiment"
+python scripts/train.py \
+--config=$1 \
+--log_to_wandb \
+--data_path=${DATA_DIR}
+--output_path=${OUTPUT_DIR}
+
+## Get outputs
+OUTPUT_HOME=${PWD}/outputs/
 mkdir -p ${OUTPUT_HOME}
 rsync --archive --update --compress --progress ${OUTPUT_DIR} ${OUTPUT_HOME}
 
-# Cleanup
-rm -rf ${OUTPUT_DIR}
+## Cleanup
+rm -rf ${OUTPUT_DIR} ${DATA_DIR}
 
 echo ""
 echo "============"
