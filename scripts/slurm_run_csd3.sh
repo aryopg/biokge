@@ -37,8 +37,5 @@ python scripts/train.py \
 mkdir -p ${PWD}/outputs
 rsync --archive --update --compress --progress ${SCRATCH_HOME}/outputs ${PWD}/outputs
 
-# Cleanup
-rm -rf ${SCRATCH_HOME}
-
 echo ""
 echo "============"
