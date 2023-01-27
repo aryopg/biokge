@@ -31,7 +31,7 @@ PYSTOW_HOME=${SCRATCH_HOME} \
 python scripts/train.py \
 --config=$1 \
 --log_to_wandb \
---output_path=${SCRATCH_HOME}/outputs
+--output_path=${SCRATCH_HOME}
 
 # Get outputs
 mkdir -p ${PWD}/outputs

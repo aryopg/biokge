@@ -5,6 +5,7 @@ import sys
 import pykeen.constants
 import pykeen.pipeline
 import pykeen.utils
+import wandb
 
 sys.path.append(os.getcwd())
 
@@ -66,7 +67,7 @@ def main():
     )
 
     # Save results
-    result.save_to_directory(args.output_path)
+    result.save_to_directory(os.path.join(args.output_path), wandb.run.name)
 
 
 if __name__ == "__main__":
