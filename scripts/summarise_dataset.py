@@ -22,6 +22,8 @@ def main():
         ha="right",
         rotation_mode="anchor",
     )
+    matplotlib.pyplot.xlabel("Relation")
+    matplotlib.pyplot.ylabel("Log Count")
     matplotlib.pyplot.yscale("log")
     matplotlib.pyplot.savefig(
         os.path.join(os.getcwd(), "plots", "relation_counts.pdf"),
