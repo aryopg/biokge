@@ -17,10 +17,10 @@ conda activate kge_playground
 python scripts/data_download.py
 
 # Move kge to scratch
-mv kge /rds/user/${USER}
+mv kge /rds/user/${USER}/hpc-work
 
 # Install kge
-cd /rds/user/${USER}/kge
+cd /rds/user/${USER}/hpc-work/kge
 pip install -e .
 
 # Cleanup
