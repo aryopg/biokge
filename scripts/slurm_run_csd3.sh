@@ -17,25 +17,13 @@ echo "Job started: $dt"
 # Load required modules
 module load cuda/10.2 cudnn/7.6_cuda-10.2
 
-# Set up scratch working folder
-SCRATCH_HOME=/rds/user/${USER}/hpc-work/kge_playground
-mkdir -p ${SCRATCH_HOME}
-
 # Activate env
 source ~/.bashrc
 conda activate kge_playground
 
 # Run
 echo "Running experiment"
-PYSTOW_HOME=${SCRATCH_HOME} \
-python scripts/train.py \
---config=$1 \
---log_to_wandb \
---output_path=${SCRATCH_HOME}
-
-# Get outputs
-mkdir -p ${PWD}/outputs
-rsync --archive --update --compress --progress ${SCRATCH_HOME}/outputs ${PWD}/outputs
+kge start configs/complex.yaml
 
 echo ""
 echo "============"

@@ -1,0 +1,3 @@
+[submodule "kge"]
+	path = kge
+	url = git@github.com:uma-pi1/kge.git
