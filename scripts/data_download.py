@@ -14,7 +14,7 @@ def main(libkge_path):
     # Collect metadata for libkge
     metadata = dict(name="biokg")
 
-    # For every datasplit
+    # For every split
     for data_split in ["training", "validation", "testing"]:
         data_split_short = data_split.replace("ing", "").replace("ation", "")
 
@@ -99,7 +99,10 @@ def main(libkge_path):
 
 if __name__ == "__main__":
 
+    # Assumes kge is in cwd
     libkge_path = os.path.join(os.getcwd(), "kge/data/biokg")
+
+    # Assumes kge/data/biokg does not exist
     if os.path.exists(libkge_path):
         print(f"{libkge_path} already exists, delete first!")
         quit()
