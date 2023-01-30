@@ -13,6 +13,9 @@ conda env create -f environment.yaml
 # Activate 
 conda activate kge_playground
 
+# Download libkge
+git clone git@github.com:uma-pi1/kge.git
+
 # Download data
 python scripts/data_download.py
 
