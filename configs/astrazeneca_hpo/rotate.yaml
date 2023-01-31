@@ -3,7 +3,7 @@ dataset.name: biokg
 
 random_seed:
   default: 42
-  pytorch: 42
+  torch: 42
   numpy: 42
   numba: 42
   python: 42
