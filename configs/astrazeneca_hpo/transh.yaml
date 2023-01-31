@@ -36,4 +36,7 @@ negative_sampling:
 valid:
   split: valid
   every: 5
-  metric: hits_at_10
+
+eval:
+  split: valid
+  batch_size: 16
