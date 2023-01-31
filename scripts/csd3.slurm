@@ -23,7 +23,7 @@ conda activate kge_playground
 
 # Run
 echo "Running experiment"
-kge start configs/complex.yaml
+kge start $1
 
 echo ""
 echo "============"
