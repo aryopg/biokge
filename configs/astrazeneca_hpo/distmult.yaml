@@ -8,7 +8,7 @@ random_seed:
   numba: 42
   python: 42
 
-model: DistMult
+model: distmult
 lookup_embedder:
   dim: 349
 

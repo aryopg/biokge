@@ -8,7 +8,7 @@ random_seed:
   numba: 42
   python: 42
 
-model: TransH
+model: transh
 lookup_embedder:
   dim: 317
 

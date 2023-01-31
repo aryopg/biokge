@@ -3,8 +3,12 @@ dataset.name: biokg
 
 random_seed:
   default: 42
+  pytorch: 42
+  numpy: 42
+  numba: 42
+  python: 42
 
-model: TransE
+model: transe
 lookup_embedder:
   dim: 378
 
