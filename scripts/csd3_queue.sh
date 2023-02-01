@@ -1,6 +1,21 @@
 #!/bin/bash
-# # SBATCH -o /home/%u/slogs/sl_%A.out
-# # SBATCH -e /home/%u/slogs/sl_%A.out
+
+## INPUT ARGS:
+# $1: config file path
+# $2: output dir name
+
+# Make output directory
+OUTPUT_DIR=/rds/user/$USER/hpc-work/kge/local/experiments/$2
+mkdir -p $OUTPUT_DIR
+
+# Copy config to output directory
+cp $1 $OUTPUT_DIR/config.yaml
+
+# Bash script
+sbatch <<EOT
+#!/bin/bash
+#SBATCH --job-name=$2
+#SBATCH --output=$(echo $2 | tr "/" "_")_%A.out
 #SBATCH -N 1                            # nodes requested
 #SBATCH -n 1                            # tasks requested
 #SBATCH --gres=gpu:1                    # use 1 GPU
@@ -10,10 +25,6 @@
 #SBATCH -t 24:00:00                     # time requested in hour:minute:seconds
 #SBATCH --cpus-per-task=3
 
-echo "Job running on ${SLURM_JOB_NODELIST}"
-dt=$(date '+%d/%m/%Y %H:%M:%S')
-echo "Job started: $dt"
-
 # Load required modules
 module load cuda/10.2 cudnn/7.6_cuda-10.2
 
@@ -22,8 +33,8 @@ source ~/.bashrc
 conda activate kge_playground
 
 # Run
-echo "Running experiment"
-kge start $1
+kge resume $OUTPUT_DIR
 
 echo ""
 echo "============"
+EOT
