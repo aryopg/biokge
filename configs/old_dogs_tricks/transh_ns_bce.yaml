@@ -1,4 +1,3 @@
-# wnrr-transe-negative_sampling-margin_ranking
 job.type: search
 search.type: ax
 dataset.name: biokg
@@ -105,20 +104,20 @@ ax_search:
     - name: lookup_embedder.regularize_args.weighted
       type: choice
       values: [True, False]
-    - name: transe.entity_embedder.regularize_weight
+    - name: transh.entity_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
-    - name: transe.relation_embedder.regularize_weight
+    - name: transh.relation_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
 
     # embedding dropout
-    - name: transe.entity_embedder.dropout
+    - name: transh.entity_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
-    - name: transe.relation_embedder.dropout
+    - name: transh.relation_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
 

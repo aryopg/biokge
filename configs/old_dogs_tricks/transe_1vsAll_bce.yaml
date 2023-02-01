@@ -104,20 +104,20 @@ ax_search:
     - name: lookup_embedder.regularize_args.weighted
       type: choice
       values: [True, False]
-    - name: complex.entity_embedder.regularize_weight
+    - name: transe.entity_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
-    - name: complex.relation_embedder.regularize_weight
+    - name: transe.relation_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
 
     # embedding dropout
-    - name: complex.entity_embedder.dropout
+    - name: transe.entity_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
-    - name: complex.relation_embedder.dropout
+    - name: transe.relation_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
 
