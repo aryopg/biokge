@@ -23,8 +23,8 @@ eval:
   metrics_per.relation_type: True
 
 # settings for reciprocal relations (if used)
-import: [transe, reciprocal_relations_model]
-reciprocal_relations_model.base_model.type: transe
+import: [transh, reciprocal_relations_model]
+reciprocal_relations_model.base_model.type: transh
 
 # ax settings: hyperparameter serach space
 ax_search:
@@ -34,7 +34,7 @@ ax_search:
       # model
     - name: model
       type: choice
-      values: [transe, reciprocal_relations_model]
+      values: [transh, reciprocal_relations_model]
 
     # training hyperparameters
     - name: train.batch_size
@@ -137,14 +137,14 @@ ax_search:
       bounds: [0.0, 10.0]
 
     # model-specific entries
-    - name: transe.l_norm
+    - name: transh.l_norm
       type: choice
       values: [1.0, 2.0]
       is_ordered: True
-    - name: transe.entity_embedder.normalize.p
+    - name: transh.entity_embedder.normalize.p
       type: choice
       values: [-1.0, 2.0]
-    - name: transe.relation_embedder.normalize.p
+    - name: transh.relation_embedder.normalize.p
       type: choice
       values: [-1.0, 2.0]
     - name: negative_sampling.implementation

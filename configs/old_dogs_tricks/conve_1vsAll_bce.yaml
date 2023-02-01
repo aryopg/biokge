@@ -8,12 +8,6 @@ train:
   max_epochs: 400
   auto_correct: True
 
-# this is faster for smaller datasets, but does not work for some models (e.g.,
-# TransE due to a pytorch issue) or for larger datasets. Change to spo in such
-# cases (either here or in ax section of model config), results will not be
-# affected.
-negative_sampling.implementation: sp_po
-
 # validation/evaluation settings (fixed)
 valid:
   every: 5
