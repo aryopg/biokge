@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import matplotlib
@@ -5,7 +6,7 @@ import pykeen.datasets
 import pykeen.datasets.analysis
 
 
-def main():
+def relation_counts():
 
     # Get dataset
     dataset = pykeen.datasets.get_dataset(dataset="biokg")
@@ -33,4 +34,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Protein Knowledge Graph Embedding Project: summarising data"
+    )
+    parser.add_argument(
+        "--type", type=str, default="relation_counts", choices=["relation_counts"]
+    )
+    args = parser.parse_args()
+
+    if args.type == "relation_counts":
+        relation_counts()
