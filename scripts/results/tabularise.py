@@ -31,13 +31,17 @@ if __name__ == "__main__":
     for experiment in os.listdir(args.experiment_folder):
 
         # Read table
-        total = pandas.read_csv(
-            io.StringIO(
-                os.popen(
-                    f"kge dump trace --search --keysfile {os.path.join(os.getcwd(), args.keys_file)} {os.path.join(args.experiment_folder, experiment)}"
-                ).read()
+        try:
+            total = pandas.read_csv(
+                io.StringIO(
+                    os.popen(
+                        f"kge dump trace --search --keysfile {os.path.join(os.getcwd(), args.keys_file)} {os.path.join(args.experiment_folder, experiment)}"
+                    ).read()
+                )
             )
-        )
+        except:
+            print("Caught exception, continuing...")
+            continue
 
         # Format
         formatted = total.iloc[[pandas.to_numeric(total["fil_mrr"]).idxmax()]][
