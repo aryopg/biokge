@@ -1,0 +1,39 @@
+job.type: train
+dataset.name: biokg_no_split
+
+random_seed:
+  default: 42
+  torch: 42
+  numpy: 42
+  numba: 42
+  python: 42
+
+model: transe
+lookup_embedder:
+  dim: 378
+
+train:
+  split: train
+  type: negative_sampling
+  loss: margin_ranking
+  max_epochs: 600
+  batch_size: 256 
+  optimizer: Adagrad
+  optimizer_args:
+    lr: 0.078
+  visualize_graph: True
+
+negative_sampling:
+  num_samples:
+    s: 91
+    p: 0          
+    o: -1 # -1 means: same as s
+  filtering:
+    s: True
+    o: True
+    implementation: fast_if_available
+
+valid:
+  split: valid
+  every: 5
+  metric: hits_at_10
