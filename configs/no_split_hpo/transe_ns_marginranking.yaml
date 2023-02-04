@@ -1,6 +1,6 @@
 job.type: search
 search.type: ax
-dataset.name: biokg
+dataset.name: biokg_no_split
 
 # training settings (fixed)
 train:
@@ -18,12 +18,12 @@ valid:
     min_threshold.metric_value: 0.05
 
 eval:
-  batch_size: 8
+  batch_size: 256
   metrics_per.relation_type: True
 
 # settings for reciprocal relations (if used)
-import: [transh, reciprocal_relations_model]
-reciprocal_relations_model.base_model.type: transh
+import: [transe, reciprocal_relations_model]
+reciprocal_relations_model.base_model.type: transe
 
 # ax settings: hyperparameter serach space
 ax_search:
@@ -33,12 +33,13 @@ ax_search:
       # model
     - name: model
       type: choice
-      values: [transh, reciprocal_relations_model]
+      values: [transe, reciprocal_relations_model]
 
     # training hyperparameters
     - name: train.batch_size
-      type: fixed   
-      value: 64
+      type: choice   
+      values: [128, 256, 512, 1024]
+      is_ordered: True
     - name: train.type
       type: fixed
       value: negative_sampling
@@ -103,20 +104,20 @@ ax_search:
     - name: lookup_embedder.regularize_args.weighted
       type: choice
       values: [True, False]
-    - name: transh.entity_embedder.regularize_weight
+    - name: transe.entity_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
-    - name: transh.relation_embedder.regularize_weight
+    - name: transe.relation_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
 
     # embedding dropout
-    - name: transh.entity_embedder.dropout
+    - name: transe.entity_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
-    - name: transh.relation_embedder.dropout
+    - name: transe.relation_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
 
@@ -135,14 +136,14 @@ ax_search:
       bounds: [0.0, 10.0]
 
     # model-specific entries
-    - name: transh.l_norm
+    - name: transe.l_norm
       type: choice
       values: [1.0, 2.0]
       is_ordered: True
-    - name: transh.entity_embedder.normalize.p
+    - name: transe.entity_embedder.normalize.p
       type: choice
       values: [-1.0, 2.0]
-    - name: transh.relation_embedder.normalize.p
+    - name: transe.relation_embedder.normalize.p
       type: choice
       values: [-1.0, 2.0]
     - name: negative_sampling.implementation

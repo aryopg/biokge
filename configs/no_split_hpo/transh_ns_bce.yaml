@@ -1,6 +1,6 @@
 job.type: search
 search.type: ax
-dataset.name: biokg
+dataset.name: biokg_no_split
 
 # training settings (fixed)
 train:
@@ -37,7 +37,7 @@ ax_search:
 
     # training hyperparameters
     - name: train.batch_size
-      type: fixed   
+      type: fixed  
       value: 64
     - name: train.type
       type: fixed

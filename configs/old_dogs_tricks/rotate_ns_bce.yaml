@@ -18,7 +18,7 @@ valid:
     min_threshold.metric_value: 0.05
 
 eval:
-  batch_size: 256
+  batch_size: 8
   metrics_per.relation_type: True
 
 # settings for reciprocal relations (if used)
@@ -37,9 +37,8 @@ ax_search:
 
     # training hyperparameters
     - name: train.batch_size
-      type: choice   
-      values: [128, 256, 512, 1024]
-      is_ordered: True
+      type: fixed   
+      value: 64
     - name: train.type
       type: fixed
       value: negative_sampling
