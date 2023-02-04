@@ -8,7 +8,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Protein Knowledge Graph Embedding Project: tabularising results"
     )
-    parser.add_argument("--type", type=str, default="simple", choices=["simple"])
+    parser.add_argument(
+        "--type", type=str, default="simple", choices=["simple", "hyperparams"]
+    )
     parser.add_argument("--experiment_folder", type=str, required=True)
     parser.add_argument(
         "--keys_file", type=str, default="scripts/results/extract_fields.conf"
