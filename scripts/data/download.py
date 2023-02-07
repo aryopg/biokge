@@ -1,11 +1,11 @@
 import argparse
 import csv
 import io
+import itertools
 import os
 import urllib
 import zipfile
 
-import numpy
 import pandas
 import pykeen.datasets
 import yaml
@@ -27,46 +27,67 @@ def pykeen_split():
         quit()
     os.mkdir(dataset_folder)
 
-    # For every split
-    for data_split in ["training", "validation", "testing"]:
-        data_split_short = data_split.replace("ing", "").replace("ation", "")
-        split = dataset.factory_dict[data_split]
+    # Get id->entity vocabulary
+    entity_to_id = dataset.factory_dict["training"].entity_labeling.label_to_id
+    id_to_entity = {value: key for key, value in entity_to_id.items()}
+    # Save
+    id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
+    with open(id_to_entity_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_entity.items())
+    metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
+    metadata["files.entity_ids.type"] = "map"
+    metadata["num_entities"] = len(id_to_entity)
 
-        # Save split data in libkge format
-        split_file = os.path.join(dataset_folder, data_split_short + ".del")
-        pandas.DataFrame(split.mapped_triples.numpy()).to_csv(
-            split_file, sep="\t", header=False, index=False
+    # Get id->relation vocabulary
+    relation_to_id = dataset.factory_dict["training"].relation_labeling.label_to_id
+    id_to_relation = {value: key for key, value in relation_to_id.items()}
+    # Save
+    id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
+    with open(id_to_relation_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_relation.items())
+    metadata["files.relation_ids.filename"] = os.path.basename(id_to_relation_file)
+    metadata["files.relation_ids.type"] = "map"
+    metadata["num_relations"] = len(id_to_relation)
+
+    # Get splits and add inverses
+    splits = {}
+    for split_name in ["training", "validation", "testing"]:
+        triples = pandas.DataFrame(
+            dataset.factory_dict[split_name].mapped_triples.numpy(),
+            columns=["head", "relation", "tail"],
         )
-        metadata[f"files.{data_split_short}.filename"] = os.path.basename(split_file)
-        metadata[f"files.{data_split_short}.size"] = split.num_triples
-        metadata[f"files.{data_split_short}.split_type"] = data_split_short
-        metadata[f"files.{data_split_short}.type"] = "triples"
 
-        if data_split == "training":
+        # Add inverses
+        total = pandas.concat(
+            [
+                triples,
+                triples.loc[
+                    triples["relation"].isin(
+                        [
+                            relation_to_id[relation] for relation in ["DDI", "PPI"]
+                        ]  # only for these relations
+                    )
+                ].rename(columns={"head": "tail", "tail": "head"}),
+            ]
+        )
 
-            # Save id->entity map in libkge format
-            id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
-            entity_to_id = split.entity_labeling.label_to_id
-            id_to_entity = {value: key for key, value in entity_to_id.items()}
-            with open(id_to_entity_file, "w") as f:
-                w = csv.writer(f, delimiter="\t")
-                w.writerows(id_to_entity.items())
-            metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
-            metadata["files.entity_ids.type"] = "map"
-            metadata["num_entities"] = len(id_to_entity)
+        # Store
+        splits[split_name.replace("ing", "").replace("ation", "")] = total
 
-            # Save id->relation map in libkge format
-            id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
-            relation_to_id = split.relation_labeling.label_to_id
-            id_to_relation = {value: key for key, value in relation_to_id.items()}
-            with open(id_to_relation_file, "w") as f:
-                w = csv.writer(f, delimiter="\t")
-                w.writerows(id_to_relation.items())
-            metadata["files.relation_ids.filename"] = os.path.basename(
-                id_to_relation_file
-            )
-            metadata["files.relation_ids.type"] = "map"
-            metadata["num_relations"] = len(id_to_relation)
+    # Check overlap
+    for split_a, split_b in itertools.combinations(splits.values(), r=2):
+        assert len(pandas.merge(split_a, split_b, on=["head", "relation", "tail"])) == 0
+
+    # Save
+    for split_name, split in splits.items():
+        split_file = os.path.join(dataset_folder, split_name + ".del")
+        split.to_csv(split_file, sep="\t", header=False, index=False)
+        metadata[f"files.{split_name}.filename"] = os.path.basename(split_file)
+        metadata[f"files.{split_name}.size"] = len(split)
+        metadata[f"files.{split_name}.split_type"] = split_name
+        metadata[f"files.{split_name}.type"] = "triples"
 
     # Write metadata
     with open(os.path.join(dataset_folder, "dataset.yaml"), "w+") as filename:
