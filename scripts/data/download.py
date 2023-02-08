@@ -122,7 +122,17 @@ def pykeen_inverses_split():
                 split.loc[
                     split["relation"].isin(
                         [
-                            relation_to_id[relation] for relation in ["DDI", "PPI"]
+                            relation_to_id[relation]
+                            for relation in [
+                                "DDI",
+                                "PPI",
+                                "DISEASE_PATHWAY_ASSOCIATION",
+                                "DPI",
+                                "DRUG_DISEASE_ASSOCIATION",
+                                "DRUG_PATHWAY_ASSOCIATION",
+                                "PROTEIN_DISEASE_ASSOCIATION",
+                                "PROTEIN_PATHWAY_ASSOCIATION",
+                            ]
                         ]  # only for these relations
                     )
                 ].rename(columns={"head": "tail", "tail": "head"}),
