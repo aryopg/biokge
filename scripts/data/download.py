@@ -11,6 +11,46 @@ import pykeen.datasets
 import yaml
 
 
+def save_id_entity_vocs(dataset, dataset_folder, metadata):
+    entity_to_id = dataset.factory_dict["training"].entity_labeling.label_to_id
+    id_to_entity = {value: key for key, value in entity_to_id.items()}
+    # Save
+    id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
+    with open(id_to_entity_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_entity.items())
+    metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
+    metadata["files.entity_ids.type"] = "map"
+    metadata["num_entities"] = len(id_to_entity)
+
+    return entity_to_id, id_to_entity
+
+
+def save_id_relation_vocs(dataset, dataset_folder, metadata):
+    relation_to_id = dataset.factory_dict["training"].relation_labeling.label_to_id
+    id_to_relation = {value: key for key, value in relation_to_id.items()}
+    # Save
+    id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
+    with open(id_to_relation_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_relation.items())
+    metadata["files.relation_ids.filename"] = os.path.basename(id_to_relation_file)
+    metadata["files.relation_ids.type"] = "map"
+    metadata["num_relations"] = len(id_to_relation)
+
+    return relation_to_id, id_to_relation
+
+
+def get_splits(dataset):
+    return {
+        split_name.replace("ing", "").replace("ation", ""): pandas.DataFrame(
+            dataset.factory_dict[split_name].mapped_triples.numpy(),
+            columns=["head", "relation", "tail"],
+        )
+        for split_name in ["training", "validation", "testing"]
+    }
+
+
 def pykeen_split():
     name = "biokg"
 
@@ -27,44 +67,60 @@ def pykeen_split():
         quit()
     os.mkdir(dataset_folder)
 
-    # Get id->entity vocabulary
-    entity_to_id = dataset.factory_dict["training"].entity_labeling.label_to_id
-    id_to_entity = {value: key for key, value in entity_to_id.items()}
-    # Save
-    id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
-    with open(id_to_entity_file, "w") as f:
-        w = csv.writer(f, delimiter="\t")
-        w.writerows(id_to_entity.items())
-    metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
-    metadata["files.entity_ids.type"] = "map"
-    metadata["num_entities"] = len(id_to_entity)
+    # Id<->entity vocabularies
+    entity_to_id, id_to_entity = save_id_entity_vocs(dataset, dataset_folder, metadata)
 
-    # Get id->relation vocabulary
-    relation_to_id = dataset.factory_dict["training"].relation_labeling.label_to_id
-    id_to_relation = {value: key for key, value in relation_to_id.items()}
-    # Save
-    id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
-    with open(id_to_relation_file, "w") as f:
-        w = csv.writer(f, delimiter="\t")
-        w.writerows(id_to_relation.items())
-    metadata["files.relation_ids.filename"] = os.path.basename(id_to_relation_file)
-    metadata["files.relation_ids.type"] = "map"
-    metadata["num_relations"] = len(id_to_relation)
+    # Id<->relation vocabularies
+    relation_to_id, id_to_relation = save_id_relation_vocs(
+        dataset, dataset_folder, metadata
+    )
 
-    # Get splits and add inverses
-    splits = {}
-    for split_name in ["training", "validation", "testing"]:
-        triples = pandas.DataFrame(
-            dataset.factory_dict[split_name].mapped_triples.numpy(),
-            columns=["head", "relation", "tail"],
-        )
+    # Get and save splits
+    for split_name, split in get_splits(dataset).items():
+        split_file = os.path.join(dataset_folder, split_name + ".del")
+        split.to_csv(split_file, sep="\t", header=False, index=False)
+        metadata[f"files.{split_name}.filename"] = os.path.basename(split_file)
+        metadata[f"files.{split_name}.size"] = len(split)
+        metadata[f"files.{split_name}.split_type"] = split_name
+        metadata[f"files.{split_name}.type"] = "triples"
 
-        # Add inverses
-        total = pandas.concat(
+    # Write metadata
+    with open(os.path.join(dataset_folder, "dataset.yaml"), "w+") as filename:
+        filename.write(yaml.dump(dict(dataset=metadata)))
+
+
+def pykeen_inverses_split():
+    name = "biokg_inverses"
+
+    # Get dataset via pykeen
+    dataset = pykeen.datasets.get_dataset(dataset="biokg")
+
+    # Collect metadata for libkge
+    metadata = dict(name=name)
+
+    # Make dataset folder
+    dataset_folder = os.path.join(os.getcwd(), name)
+    if os.path.exists(dataset_folder):
+        print(f"{dataset_folder} exists, please delete/rename first!")
+        quit()
+    os.mkdir(dataset_folder)
+
+    # Id<->entity vocabularies
+    save_id_entity_vocs(dataset, dataset_folder, metadata)
+
+    # Id<->relation vocabularies
+    relation_to_id, _ = save_id_relation_vocs(dataset, dataset_folder, metadata)
+
+    # Get splits
+    splits = get_splits(dataset)
+
+    # Add inverses
+    splits = {
+        split_name: pandas.concat(
             [
-                triples,
-                triples.loc[
-                    triples["relation"].isin(
+                split,
+                split.loc[
+                    split["relation"].isin(
                         [
                             relation_to_id[relation] for relation in ["DDI", "PPI"]
                         ]  # only for these relations
@@ -72,9 +128,8 @@ def pykeen_split():
                 ].rename(columns={"head": "tail", "tail": "head"}),
             ]
         )
-
-        # Store
-        splits[split_name.replace("ing", "").replace("ation", "")] = total
+        for split_name, split in splits.items()
+    }
 
     # Check overlap
     for split_a, split_b in itertools.combinations(splits.values(), r=2):
@@ -110,41 +165,36 @@ def no_split():
     # Collect metadata for libkge
     metadata = dict(name=name)
 
-    # Save training data in libkge format
-    train_file = os.path.join(dataset_folder, "train.del")
+    # Id<->entity vocabularies
+    entity_to_id, _ = save_id_entity_vocs(dataset, dataset_folder, metadata)
+
+    # Id<->relation vocabularies
+    relation_to_id, _ = save_id_relation_vocs(dataset, dataset_folder, metadata)
+
+    # Get Biokg as a whole
+    train_data = pandas.concat(get_splits(dataset).values())
+
+    # Add inverses
     train_data = pandas.concat(
         [
-            pandas.DataFrame(split.mapped_triples.numpy())
-            for split in dataset.factory_dict.values()
+            train_data,
+            train_data.loc[
+                train_data["relation"].isin(
+                    [
+                        relation_to_id[relation] for relation in ["DDI", "PPI"]
+                    ]  # only for these relations
+                )
+            ].rename(columns={"head": "tail", "tail": "head"}),
         ]
     )
+
+    # Save training data in libkge format
+    train_file = os.path.join(dataset_folder, "train.del")
     train_data.to_csv(train_file, sep="\t", index=False, header=False)
     metadata[f"files.train.filename"] = os.path.basename(train_file)
     metadata[f"files.train.size"] = train_data.shape[0]
     metadata[f"files.train.split_type"] = "train"
     metadata[f"files.train.type"] = "triples"
-
-    # Save id->entity map in libkge format
-    id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
-    entity_to_id = dataset.factory_dict["training"].entity_labeling.label_to_id
-    id_to_entity = {value: key for key, value in entity_to_id.items()}
-    with open(id_to_entity_file, "w") as f:
-        w = csv.writer(f, delimiter="\t")
-        w.writerows(id_to_entity.items())
-    metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
-    metadata["files.entity_ids.type"] = "map"
-    metadata["num_entities"] = len(id_to_entity)
-
-    # Save id->relation map in libkge format
-    id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
-    relation_to_id = dataset.factory_dict["training"].relation_labeling.label_to_id
-    id_to_relation = {value: key for key, value in relation_to_id.items()}
-    with open(id_to_relation_file, "w") as f:
-        w = csv.writer(f, delimiter="\t")
-        w.writerows(id_to_relation.items())
-    metadata["files.relation_ids.filename"] = os.path.basename(id_to_relation_file)
-    metadata["files.relation_ids.type"] = "map"
-    metadata["num_relations"] = len(id_to_relation)
 
     # Get benchmarks via biokg
     valid_data = "ddi_efficacy.tsv"
@@ -201,12 +251,17 @@ if __name__ == "__main__":
         description="Protein Knowledge Graph Embedding Project: downloading data"
     )
     parser.add_argument(
-        "--type", type=str, default="simple", choices=["pykeen", "no_split"]
+        "--type",
+        type=str,
+        default="simple",
+        choices=["pykeen", "inverses", "no_split"],
     )
     args = parser.parse_args()
 
     # Download and split
     if args.type == "pykeen":
         pykeen_split()
+    elif args.type == "inverses":
+        pykeen_inverses_split()
     elif args.type == "no_split":
         no_split()

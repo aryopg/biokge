@@ -1,6 +1,6 @@
 job.type: search
 search.type: ax
-dataset.name: biokg_inverses
+dataset.name: biokg_no_split
 
 # training settings (fixed)
 train:

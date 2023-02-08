@@ -1,3 +1,4 @@
+# wnrr-conve-1vsAll-bce
 job.type: search
 search.type: ax
 dataset.name: biokg_inverses
@@ -22,18 +23,18 @@ eval:
   metrics_per.relation_type: True
 
 # settings for reciprocal relations (if used)
-import: [complex, reciprocal_relations_model]
-reciprocal_relations_model.base_model.type: complex
+import: [conve, reciprocal_relations_model]
+reciprocal_relations_model.base_model.type: conve
 
-# ax settings: hyperparameter search space
+# ax settings: hyperparameter serach space
 ax_search:
   num_trials: 30
   num_sobol_trials: 30 
   parameters:
       # model
     - name: model
-      type: choice
-      values: [complex, reciprocal_relations_model]
+      type: fixed
+      value: reciprocal_relations_model
 
     # training hyperparameters
     - name: train.batch_size
@@ -104,22 +105,34 @@ ax_search:
     - name: lookup_embedder.regularize_args.weighted
       type: choice
       values: [True, False]
-    - name: complex.entity_embedder.regularize_weight
+    - name: conve.entity_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
-    - name: complex.relation_embedder.regularize_weight
+    - name: conve.relation_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
 
     # embedding dropout
-    - name: complex.entity_embedder.dropout
+    - name: conve.entity_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
-    - name: complex.relation_embedder.dropout
+    - name: conve.relation_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
 
     # training-type specific hyperparameters
     # model-specific entries
+    - name: conve.feature_map_dropout
+      type: range
+      bounds: [0.0, 0.5]
+    - name: conve.projection_dropout
+      type: range
+      bounds: [0.0, 0.5]
+    - name: conve.convolution_bias
+      type: choice
+      values: [True, False]
+    - name: conve.round_dim
+      type: fixed
+      value: True
