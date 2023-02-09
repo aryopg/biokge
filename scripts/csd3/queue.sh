@@ -23,17 +23,17 @@ sbatch <<EOT
 #SBATCH --partition=pascal
 #SBATCH --account=BMAI-CDT-SL2-GPU
 #SBATCH -t 24:00:00                     # time requested in hour:minute:seconds
-#SBATCH --cpus-per-task=3
+#SBATCH --cpus-per-task=12
 
 # Load required modules
 module load cuda/10.2 cudnn/7.6_cuda-10.2
 
 # Activate env
 source ~/.bashrc
-conda activate kge_playground
+conda activate kge_playground 
 
 # Run
-kge resume $OUTPUT_DIR
+kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 12
 
 echo ""
 echo "============"

@@ -1,0 +1,29 @@
+job.type: train
+dataset.name: biokg
+
+model: complex
+lookup_embedder:
+  dim: 500
+  regularize: l3
+  regularize_args:
+    weighted: True
+
+complex:
+  entity_embedder:
+    regularize_weight: 0.005
+  relation_embedder:
+    regularize_weight: 0.005
+
+train:
+  split: train
+  type: 1vsAll
+  loss: kl
+  max_epochs: 100
+  batch_size: 100 
+  optimizer: Adagrad
+  optimizer_args:
+    lr: 0.1
+
+valid:
+  split: valid
+  every: 1
