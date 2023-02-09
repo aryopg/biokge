@@ -18,7 +18,7 @@ sbatch <<EOT
 #SBATCH --output=$(echo $2 | tr "/" "_")_%A.out
 #SBATCH -N 1                            # nodes requested
 #SBATCH -n 1                            # tasks requested
-#SBATCH --gres=gpu:1                    # use 1 GPU
+#SBATCH --gres=gpu:4                    # use 4 GPUs
 #SBATCH --mem=20000                     # memory in Mb
 #SBATCH --partition=pascal
 #SBATCH --account=BMAI-CDT-SL2-GPU
