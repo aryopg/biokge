@@ -33,7 +33,7 @@ source ~/.bashrc
 conda activate kge_playground 
 
 # Run
-kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 12
+kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 8
 
 echo ""
 echo "============"
