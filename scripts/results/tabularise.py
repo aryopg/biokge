@@ -28,14 +28,19 @@ if __name__ == "__main__":
         ],
         hyperparams=[
             "model",
+            "dataset",
             "train_type",
-            "epochs",
-            "emb_dim",
             "train_loss",
-            "num_negs_o",
-            "num_negs_s",
+            "epochs",
+            "lr",
+            "emb_regularize_p",
+            "emb_dim",
+            "raw_hits@10",
             "fil_hits@10",
+            "fwt_hits@10",
+            "raw_mrr",
             "fil_mrr",
+            "fwt_mrr",
         ],
     )
 
@@ -57,9 +62,10 @@ if __name__ == "__main__":
             continue
 
         # Format
-        formatted = total.iloc[[pandas.to_numeric(total["fil_mrr"]).idxmax()]][
-            col_selection[args.type]
-        ]
+        formatted = total[col_selection[args.type]]
+
+        # Sort on fwt_mrr
+        formatted.sort_values(by="fwt_mrr", inplace=True)
 
         # Store
         tables.append(formatted)
