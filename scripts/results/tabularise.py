@@ -27,6 +27,7 @@ if __name__ == "__main__":
             "fil_mrr",
         ],
         hyperparams=[
+            "trial",
             "dataset",
             "model",
             "reciprocal",
@@ -67,7 +68,7 @@ if __name__ == "__main__":
         formatted = total[col_selection[args.type]]
 
         # Sort on fwt_mrr
-        formatted = formatted.sort_values(by="fwt_mrr")
+        formatted = formatted.sort_values(by="fil_mrr")
 
         # Store
         tables.append(formatted)
