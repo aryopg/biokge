@@ -6,6 +6,7 @@ import os
 import urllib
 import zipfile
 
+import numpy
 import pandas
 import pykeen.datasets
 import yaml
@@ -256,22 +257,109 @@ def no_split():
         filename.write(yaml.dump(dict(dataset=metadata)))
 
 
+def benchmark(name):
+
+    # Make dataset folder
+    dataset_folder = os.path.join(os.getcwd(), name)
+    if os.path.exists(dataset_folder):
+        print(f"{dataset_folder} exists, please delete/rename first!")
+        quit()
+    os.mkdir(dataset_folder)
+
+    # Get original biokg dataset via pykeen
+    dataset = pykeen.datasets.get_dataset(dataset="biokg")
+
+    # Collect metadata for libkge
+    metadata = dict(name=name)
+
+    # Id<->entity vocabularies
+    entity_to_id, _ = save_id_entity_vocs(dataset, dataset_folder, metadata)
+
+    # Get benchmark via biokg
+    with zipfile.ZipFile(
+        io.BytesIO(
+            urllib.request.urlopen(
+                "https://github.com/dsi-bdi/biokg/releases/download/v1.0.0/benchmarks.zip"
+            ).read()
+        )
+    ) as zip_file:
+        data = pandas.read_csv(
+            io.TextIOWrapper(zip_file.open(name + ".tsv"), newline=""),
+            delimiter="\t",
+            names=["subject", "predicate", "object"],
+        )
+
+    # Map entity columns
+    data.replace({"subject": entity_to_id, "object": entity_to_id}, inplace=True)
+
+    # Create new relation<->vocabulary
+    predicates = data["predicate"].unique()
+    relation_to_id = {
+        relation: id for relation, id in zip(predicates, list(range(len(predicates))))
+    }
+    id_to_relation = {id: relation for relation, id in relation_to_id.items()}
+    # Save
+    id_to_relation_file = os.path.join(dataset_folder, "relation_ids.del")
+    with open(id_to_relation_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_relation.items())
+    metadata["files.relation_ids.filename"] = os.path.basename(id_to_relation_file)
+    metadata["files.relation_ids.type"] = "map"
+    metadata["num_relations"] = len(id_to_relation)
+
+    # Map relation column
+    data.replace({"predicate": relation_to_id}, inplace=True)
+
+    # Shuffle and split
+    train, valid, test = numpy.split(
+        data.sample(frac=1), [int(0.6 * len(data)), int(0.8 * len(data))]
+    )
+
+    # Save training data in libkge format
+    train_file = os.path.join(dataset_folder, "train.del")
+    train.to_csv(train_file, sep="\t", index=False, header=False)
+    metadata[f"files.train.filename"] = os.path.basename(train_file)
+    metadata[f"files.train.size"] = train.shape[0]
+    metadata[f"files.train.split_type"] = "train"
+    metadata[f"files.train.type"] = "triples"
+
+    # Save valid data in libkge format
+    valid_file = os.path.join(dataset_folder, "valid.del")
+    valid.to_csv(valid_file, sep="\t", index=False, header=False)
+    metadata[f"files.valid.filename"] = os.path.basename(valid_file)
+    metadata[f"files.valid.size"] = len(valid)
+    metadata[f"files.valid.split_type"] = "valid"
+    metadata[f"files.valid.type"] = "triples"
+
+    # Save test data in libkge format
+    test_file = os.path.join(dataset_folder, "test.del")
+    test.to_csv(test_file, sep="\t", index=False, header=False)
+    metadata[f"files.test.filename"] = os.path.basename(test_file)
+    metadata[f"files.test.size"] = len(test)
+    metadata[f"files.test.split_type"] = "test"
+    metadata[f"files.test.type"] = "triples"
+
+    # Write metadata
+    with open(os.path.join(dataset_folder, "dataset.yaml"), "w+") as filename:
+        filename.write(yaml.dump(dict(dataset=metadata)))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Protein Knowledge Graph Embedding Project: downloading data"
     )
-    parser.add_argument(
-        "--type",
-        type=str,
-        default="simple",
-        choices=["pykeen", "inverses", "no_split"],
-    )
+    parser.add_argument("--pykeen", action="store_true", default=False)
+    parser.add_argument("--inverses", action="store_true", default=False)
+    parser.add_argument("--no_split", action="store_true", default=False)
+    parser.add_argument("--benchmark", type=str, default=False)
     args = parser.parse_args()
 
     # Download and split
-    if args.type == "pykeen":
+    if args.pykeen:
         pykeen_split()
-    elif args.type == "inverses":
+    if args.inverses:
         pykeen_inverses_split()
-    elif args.type == "no_split":
+    if args.no_split:
         no_split()
+    if args.benchmark:
+        benchmark(args.benchmark)
