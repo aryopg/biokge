@@ -7,6 +7,12 @@ train:
   max_epochs: 400
   auto_correct: True
 
+# this is faster for smaller datasets, but does not work for some models (e.g.,
+# TransE due to a pytorch issue) or for larger datasets. Change to spo in such
+# cases (either here or in ax section of model config), results will not be
+# affected.
+negative_sampling.implementation: sp_po
+
 # validation/evaluation settings (fixed)
 valid:
   split: valid
@@ -27,15 +33,15 @@ eval:
 import: [conve, reciprocal_relations_model]
 reciprocal_relations_model.base_model.type: conve
 
-# ax settings: hyperparameter search space
+# ax settings: hyperparameter serach space
 ax_search:
   num_trials: 30
   num_sobol_trials: 30 
   parameters:
       # model
     - name: model
-      type: choice
-      values: [conve, reciprocal_relations_model]
+      type: fixed
+      value: reciprocal_relations_model
 
     # training hyperparameters
     - name: train.batch_size
@@ -74,7 +80,7 @@ ax_search:
     # embedding dimension
     - name: lookup_embedder.dim
       type: choice 
-      values: [128, 256, 512, 1024]
+      values: [128, 256, 512]
       is_ordered: True
 
     # embedding initialization
