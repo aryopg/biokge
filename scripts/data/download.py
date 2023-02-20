@@ -272,9 +272,6 @@ def benchmark(name):
     # Collect metadata for libkge
     metadata = dict(name=name)
 
-    # Id<->entity vocabularies
-    entity_to_id, _ = save_id_entity_vocs(dataset, dataset_folder, metadata)
-
     # Get benchmark via biokg
     with zipfile.ZipFile(
         io.BytesIO(
@@ -288,17 +285,36 @@ def benchmark(name):
             delimiter="\t",
             names=["subject", "predicate", "object"],
         )
+
+    # Id<->entity vocabularies
+    entity_to_id = dataset.factory_dict["training"].entity_labeling.label_to_id
+    num_entities = len(entity_to_id)
+
+    def map_or_new(entity):
+        if entity in entity_to_id:
+            return entity_to_id[entity]
+        else:
+            new = max(entity_to_id.values()) + 1
+            entity_to_id[entity] = new
+            return new
+
     # Map subjects
-    data["subject"] = data["subject"].map(entity_to_id)
-    print(data["subject"].isna().sum())
-    data.dropna(inplace=True)
-    data["subject"] = data["subject"].astype(int)
+    data["subject"] = data["subject"].map(map_or_new)
 
     # Map objects
-    data["object"] = data["object"].map(entity_to_id)
-    print(data["object"].isna().sum())
-    data.dropna(inplace=True)
-    data["object"] = data["object"].astype(int)
+    data["object"] = data["object"].map(map_or_new)
+
+    print(f"Found {len(entity_to_id)-num_entities} new entities.")
+
+    # Save
+    id_to_entity = {value: key for key, value in entity_to_id.items()}
+    id_to_entity_file = os.path.join(dataset_folder, "entity_ids.del")
+    with open(id_to_entity_file, "w") as f:
+        w = csv.writer(f, delimiter="\t")
+        w.writerows(id_to_entity.items())
+    metadata["files.entity_ids.filename"] = os.path.basename(id_to_entity_file)
+    metadata["files.entity_ids.type"] = "map"
+    metadata["num_entities"] = len(id_to_entity)
 
     # Create new relation<->vocabulary
     predicates = data["predicate"].unique()
