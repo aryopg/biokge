@@ -1,6 +1,6 @@
 job.type: search
 search.type: ax
-dataset.name: biokg
+dataset.name: dpi_fda
 
 # training settings (fixed)
 train:
@@ -9,7 +9,8 @@ train:
 
 # validation/evaluation settings (fixed)
 valid:
-  every: 5
+  split: valid
+  every: 2
   metric: mean_reciprocal_rank_filtered_with_test
   filter_with_test: True
   early_stopping:
@@ -18,14 +19,15 @@ valid:
     min_threshold.metric_value: 0.05
 
 eval:
+  split: test
   batch_size: 256
   metrics_per.relation_type: True
 
 # settings for reciprocal relations (if used)
-import: [distmult, reciprocal_relations_model]
-reciprocal_relations_model.base_model.type: distmult
+import: [complex, reciprocal_relations_model]
+reciprocal_relations_model.base_model.type: complex
 
-# ax settings: hyperparameter serach space
+# ax settings: hyperparameter search space
 ax_search:
   num_trials: 30
   num_sobol_trials: 30 
@@ -33,7 +35,7 @@ ax_search:
       # model
     - name: model
       type: choice
-      values: [distmult, reciprocal_relations_model]
+      values: [complex, reciprocal_relations_model]
 
     # training hyperparameters
     - name: train.batch_size
@@ -48,7 +50,7 @@ ax_search:
       values: [Adam, Adagrad]
     - name: train.loss
       type: fixed
-      value: bce
+      value: kl
     - name: train.optimizer_args.lr     
       type: range
       bounds: [0.0003, 1.0]
@@ -72,7 +74,7 @@ ax_search:
     # embedding dimension
     - name: lookup_embedder.dim
       type: choice 
-      values: [128, 256, 512]
+      values: [128, 256, 512, 1024]
       is_ordered: True
 
     # embedding initialization
@@ -104,20 +106,20 @@ ax_search:
     - name: lookup_embedder.regularize_args.weighted
       type: choice
       values: [True, False]
-    - name: distmult.entity_embedder.regularize_weight
+    - name: complex.entity_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
-    - name: distmult.relation_embedder.regularize_weight
+    - name: complex.relation_embedder.regularize_weight
       type: range
       bounds: [1.0e-20, 1.0e-01]
       log_scale: True
 
     # embedding dropout
-    - name: distmult.entity_embedder.dropout
+    - name: complex.entity_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
-    - name: distmult.relation_embedder.dropout
+    - name: complex.relation_embedder.dropout
       type: range
       bounds: [-0.5, 0.5]
 

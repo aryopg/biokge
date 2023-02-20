@@ -288,9 +288,17 @@ def benchmark(name):
             delimiter="\t",
             names=["subject", "predicate", "object"],
         )
+    # Map subjects
+    data["subject"] = data["subject"].map(entity_to_id)
+    print(data["subject"].isna().sum())
+    data.dropna(inplace=True)
+    data["subject"] = data["subject"].astype(int)
 
-    # Map entity columns
-    data.replace({"subject": entity_to_id, "object": entity_to_id}, inplace=True)
+    # Map objects
+    data["object"] = data["object"].map(entity_to_id)
+    print(data["object"].isna().sum())
+    data.dropna(inplace=True)
+    data["object"] = data["object"].astype(int)
 
     # Create new relation<->vocabulary
     predicates = data["predicate"].unique()
@@ -308,11 +316,11 @@ def benchmark(name):
     metadata["num_relations"] = len(id_to_relation)
 
     # Map relation column
-    data.replace({"predicate": relation_to_id}, inplace=True)
+    data["predicate"] = data["predicate"].map(relation_to_id).astype(int)
 
     # Shuffle and split
     train, valid, test = numpy.split(
-        data.sample(frac=1), [int(0.6 * len(data)), int(0.8 * len(data))]
+        data.sample(frac=1), [int(0.8 * len(data)), int(0.9 * len(data))]
     )
 
     # Save training data in libkge format

@@ -1,6 +1,6 @@
 job.type: search
 search.type: ax
-dataset.name: biokg
+dataset.name: dep_fda_exp
 
 # training settings (fixed)
 train:
@@ -9,7 +9,8 @@ train:
 
 # validation/evaluation settings (fixed)
 valid:
-  every: 5
+  split: valid
+  every: 2
   metric: mean_reciprocal_rank_filtered_with_test
   filter_with_test: True
   early_stopping:
@@ -18,6 +19,7 @@ valid:
     min_threshold.metric_value: 0.05
 
 eval:
+  split: test
   batch_size: 256
   metrics_per.relation_type: True
 
@@ -48,7 +50,7 @@ ax_search:
       values: [Adam, Adagrad]
     - name: train.loss
       type: fixed
-      value: bce
+      value: kl
     - name: train.optimizer_args.lr     
       type: range
       bounds: [0.0003, 1.0]
@@ -72,7 +74,7 @@ ax_search:
     # embedding dimension
     - name: lookup_embedder.dim
       type: choice 
-      values: [128, 256, 512]
+      values: [128, 256, 512, 1024]
       is_ordered: True
 
     # embedding initialization

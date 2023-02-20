@@ -19,24 +19,21 @@ sbatch <<EOT
 #SBATCH -N 1                            # nodes requested
 #SBATCH -n 1                            # tasks requested
 #SBATCH --gres=gpu:4                    # use 4 GPUs
-#SBATCH --mem=40000                     # memory in Mb
-#SBATCH --partition=ampere
+#SBATCH --mem=20000                     # memory in Mb
+#SBATCH --partition=pascal
 #SBATCH --account=BMAI-CDT-SL2-GPU
-#SBATCH -t 36:00:00                     # time requested in hour:minute:seconds
-
-. /etc/profile.d/modules.sh                # Leave this line (enables the module command)
-module purge                               # Removes all modules still loaded
-module load rhel8/default-amp              # REQUIRED - loads the basic environment
+#SBATCH -t 24:00:00                     # time requested in hour:minute:seconds
+#SBATCH --cpus-per-task=12
 
 # Load required modules
-module load cuda/11.1 cudnn/8.0_cuda-11.1
+module load cuda/10.2 cudnn/7.6_cuda-10.2
 
 # Activate env
 source ~/.bashrc
-conda activate kge_new
+conda activate kge_playground
 
 # Run
-export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.10/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.8/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
 kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 10
 
 echo ""
