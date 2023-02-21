@@ -12,7 +12,6 @@ random_seed:
 # training settings (fixed)
 train:
   max_epochs: 200
-  auto_correct: True
 
 # validation/evaluation settings (fixed)
 valid:

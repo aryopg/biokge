@@ -163,5 +163,7 @@ datasets/
 experiments/
 wandb/
 outputs/
+*.pt
+kge/
 
 .DS_Store
