@@ -79,7 +79,7 @@ train:
     patience: 9
     threshold: 0.0001
   lr_warmup: 0
-  max_epochs: 400
+  max_epochs: 200
   num_workers: 0
   optimizer:
     +++: +++

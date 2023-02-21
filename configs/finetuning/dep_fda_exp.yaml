@@ -5,7 +5,7 @@ dataset.name: dep_fda_exp
 
 # training settings (fixed)
 train:
-  max_epochs: 400
+  max_epochs: 200
 
 # validation/evaluation settings (fixed)
 valid:
