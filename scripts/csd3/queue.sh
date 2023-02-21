@@ -19,7 +19,8 @@ sbatch <<EOT
 #SBATCH -N 1                            # nodes requested
 #SBATCH -n 1                            # tasks requested
 #SBATCH --gres=gpu:4                    # use 4 GPUs
-#SBATCH --mem=40000                     # memory in Mb
+#SBATCH --mem=80000                     # memory in Mb
+#SBATCH --cpus-per-gpu=32
 #SBATCH --partition=ampere
 #SBATCH --account=BMAI-CDT-SL2-GPU
 #SBATCH -t 36:00:00                     # time requested in hour:minute:seconds
@@ -37,7 +38,7 @@ conda activate kge_new
 
 # Run
 export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.10/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
-kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 10
+kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 15
 
 echo ""
 echo "============"
