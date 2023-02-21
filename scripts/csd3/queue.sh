@@ -16,14 +16,14 @@ sbatch <<EOT
 #!/bin/bash
 #SBATCH --job-name=$2
 #SBATCH --output=$(echo $2 | tr "/" "_")_%A.out
-#SBATCH -N 1                            # nodes requested
-#SBATCH -n 1                            # tasks requested
-#SBATCH --gres=gpu:4                    # use 4 GPUs
-#SBATCH --mem=80000                     # memory in Mb
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH --gres=gpu:4
+#SBATCH --mem=100000
 #SBATCH --cpus-per-gpu=32
 #SBATCH --partition=ampere
 #SBATCH --account=BMAI-CDT-SL2-GPU
-#SBATCH -t 36:00:00                     # time requested in hour:minute:seconds
+#SBATCH -t 36:00:00
 
 . /etc/profile.d/modules.sh                # Leave this line (enables the module command)
 module purge                               # Removes all modules still loaded
@@ -38,7 +38,7 @@ conda activate kge_new
 
 # Run
 export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.10/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
-kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 15
+kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 10
 
 echo ""
 echo "============"
