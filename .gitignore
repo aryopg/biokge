@@ -160,10 +160,10 @@ cython_debug/
 #.idea/
 
 datasets/
+kge/
 experiments/
 wandb/
 outputs/
 *.pt
-kge/
 
 .DS_Store

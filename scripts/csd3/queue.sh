@@ -18,10 +18,10 @@ sbatch <<EOT
 #SBATCH --output=$(echo $2 | tr "/" "_")_%A.out
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --gres=gpu:4
-#SBATCH --mem=100000
-#SBATCH --cpus-per-gpu=32
 #SBATCH --partition=ampere
+#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-gpu=16
+#SBATCH --mem=200000
 #SBATCH --account=BMAI-CDT-SL2-GPU
 #SBATCH -t 36:00:00
 
@@ -37,6 +37,7 @@ source ~/.bashrc
 conda activate kge_new
 
 # Run
+export CUDA_VISIBLE_DEVICES='0,1,2,3'
 export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.10/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
 kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 10
 

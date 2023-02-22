@@ -20,8 +20,8 @@ valid:
   metric: mean_reciprocal_rank_filtered_with_test
   early_stopping:
     patience: 10
-    min_threshold.epochs: 50
-    min_threshold.metric_value: 0.05
+    threshold.epochs: 50
+    threshold.metric_value: 0.05
 
 eval:
   split: test
@@ -90,6 +90,7 @@ ax_search:
     - name: lookup_embedder.dim
       type: choice 
       values: [128, 256, 512, 1024]
+      value_type: int
       is_ordered: True
 
     # embedding initialization
