@@ -156,4 +156,15 @@ ax_search:
       value_type: float
 
     # training-type specific hyperparameters
+    - name: negative_sampling.num_negatives_s 
+      type: range                             
+      bounds: [1, 1000]                       
+      value_type: int
+      log_scale: True                         
+    - name: negative_sampling.num_negatives_o 
+      type: range                             
+      bounds: [1, 1000]                       
+      value_type: int
+      log_scale: True                         
+
     # model-specific entries
