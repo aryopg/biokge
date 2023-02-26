@@ -50,7 +50,7 @@ ax_search:
       # Pretraining
     - name: complex.entity_embedder.pretrain.model_filename
       type: fixed
-      value: checkpoint_pretrained.pt
+      value: /rds/user/hpcwulf1/hpc-work/kge/local/experiments/finals/complex/biokg/00009/checkpoint_best.pt
 
     # training hyperparameters
     - name: train.batch_size
