@@ -1,7 +1,7 @@
 job.type: search
 job.auto_correct: True
 search.type: ax_search
-dataset.name: dpi_fda
+dataset.name: ddi_minerals
 random_seed:
   default: 42
   numba: 42
@@ -47,6 +47,11 @@ ax_search:
       value_type: str
       is_ordered: False
 
+      # Pretraining
+    - name: complex.entity_embedder.pretrain.model_filename
+      type: fixed
+      value: checkpoint_pretrained.pt
+
     # training hyperparameters
     - name: train.batch_size
       type: choice   
@@ -88,10 +93,8 @@ ax_search:
 
     # embedding dimension
     - name: lookup_embedder.dim
-      type: choice 
-      values: [128, 256, 512, 1024]
-      value_type: int
-      is_ordered: True
+      type: fixed 
+      value: 512
 
     # embedding initialization
     - name: lookup_embedder.initialize

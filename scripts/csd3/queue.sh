@@ -39,7 +39,7 @@ conda activate kge_new
 # Run
 export CUDA_VISIBLE_DEVICES='0,1,2,3'
 export LD_LIBRARY_PATH=/home/$USER/.conda/envs/kge_playground/lib/python3.10/site-packages/nvidia/cublas/lib/:$LD_LIBRARY_PATH
-kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 10
+kge resume $OUTPUT_DIR --search.device_pool cuda:0,cuda:1,cuda:2,cuda:3 --search.num_workers 16
 
 echo ""
 echo "============"
