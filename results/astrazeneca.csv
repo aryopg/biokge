@@ -1,6 +1,0 @@
-model,train_type,train_loss,epochs,emb_e_dim,emb_r_dim,train_lr,num_negs_s,num_negs_o,fil_hits@10,fil_mrr
-transh,negative_sampling,margin_ranking,55,317,634,0.067,14,,0.0575241779497098,0.0248012237253687
-rotate,negative_sampling,margin_ranking,180,414,207,0.055,12,,0.0600556092843326,0.0256507457386363
-transe,negative_sampling,margin_ranking,60,378,378,0.078,91,,0.0679593810444874,0.0286267963461073
-complex,negative_sampling,margin_ranking,165,422,422,0.058,81,,0.0430512572533849,0.0237101370776414
-distmult,negative_sampling,margin_ranking,150,349,349,0.039,71,,0.0298573500967117,0.0181672547449226

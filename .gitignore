@@ -164,6 +164,8 @@ kge/
 experiments/
 wandb/
 outputs/
+models/
 *.pt
+*.del
 
 .DS_Store

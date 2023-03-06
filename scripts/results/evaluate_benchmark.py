@@ -138,9 +138,15 @@ def evaluate(model_path):
 
     # Get trues
     def get_trues(triples):
-        return {
-            (triple[0].item(), triple[2].item()): triple[1].item() for triple in triples
+        res = {
+            (triple[0].item(), triple[2].item()): torch.zeros(
+                max(dataset._num_relations, 2)
+            )
+            for triple in triples
         }
+        for triple in triples:
+            res[triple[0].item(), triple[2].item()][triple[1].item()] = 1
+        return res
 
     valid_trues = get_trues(valid_triples)
     test_trues = get_trues(test_triples)
@@ -172,25 +178,76 @@ def evaluate(model_path):
     test_trues = numpy.stack(list(test_trues.values()))
 
     if dataset._num_relations == 1:
-        valid_preds = torch.stack(list(valid_preds.values())).sigmoid().numpy()[:, 0]
-        test_preds = torch.stack(list(test_preds.values())).sigmoid().numpy()[:, 0]
+        valid_preds = torch.stack(list(valid_preds.values()))  # .sigmoid()
+        valid_preds = torch.hstack([1 - valid_preds, valid_preds])
+        test_preds = torch.stack(list(test_preds.values()))  # .sigmoid()
+        test_preds = torch.hstack([1 - test_preds, test_preds])
+    elif dataset._num_relations == 2:
+        valid_preds = torch.stack(list(valid_preds.values())).numpy()
+        test_preds = torch.stack(list(test_preds.values())).numpy()
     else:
-        valid_preds = torch.stack(list(valid_preds.values())).softmax(dim=1)
-        test_preds = torch.stack(list(test_preds.values())).softmax(dim=1)
+        valid_preds = torch.stack(list(valid_preds.values())).softmax(dim=1).numpy()
+        test_preds = torch.stack(list(test_preds.values())).softmax(dim=1).numpy()
 
-    # Calculate scores
+    ## Calculate scores
+
+    # AUROC
     valid_roc_auc = sklearn.metrics.roc_auc_score(
-        valid_trues,
-        valid_preds,
+        valid_trues.argmax(axis=1),
+        valid_preds[:, 1] if dataset._num_relations < 3 else valid_preds,
         multi_class="ovr",
     )
     test_roc_auc = sklearn.metrics.roc_auc_score(
-        test_trues,
-        test_preds,
+        test_trues.argmax(axis=1),
+        test_preds[:, 1] if dataset._num_relations < 3 else test_preds,
         multi_class="ovr",
     )
-    print(valid_roc_auc)
-    print(test_roc_auc)
+    print(f"Validation AUROC: {valid_roc_auc}")
+    print(f"Test AUROC: {test_roc_auc}")
+
+    # AUPRC
+    valid_prc = [
+        sklearn.metrics.precision_recall_curve(
+            valid_trues[:, relation], valid_preds[:, relation]
+        )
+        for relation in range(dataset._num_relations)
+    ]
+    test_prc = [
+        sklearn.metrics.precision_recall_curve(
+            test_trues[:, relation], test_preds[:, relation]
+        )
+        for relation in range(dataset._num_relations)
+    ]
+    valid_prc_auc = [
+        sklearn.metrics.auc(relation_prc[1], relation_prc[0])
+        for relation_prc in valid_prc
+    ]
+    test_prc_auc = [
+        sklearn.metrics.auc(relation_prc[1], relation_prc[0])
+        for relation_prc in test_prc
+    ]
+    valid_prc_auc = sum(valid_prc_auc) / len(valid_prc_auc)
+    test_prc_auc = sum(test_prc_auc) / len(test_prc_auc)
+    print(f"Validation AUPRC: {valid_prc_auc}")
+    print(f"Test AUPRC: {test_prc_auc}")
+
+    # MAP
+    valid_map = [
+        sklearn.metrics.average_precision_score(
+            valid_trues[:, relation], valid_preds[:, relation]
+        )
+        for relation in range(dataset._num_relations)
+    ]
+    test_map = [
+        sklearn.metrics.average_precision_score(
+            test_trues[:, relation], test_preds[:, relation]
+        )
+        for relation in range(dataset._num_relations)
+    ]
+    valid_map = sum(valid_map) / len(valid_map)
+    test_map = sum(test_map) / len(test_map)
+    print(f"Validation MAP: {valid_map}")
+    print(f"Test MAP: {test_map}")
 
 
 if __name__ == "__main__":
