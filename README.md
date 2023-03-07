@@ -1,42 +1,70 @@
-# KGE Playground
+# Evaluating Knowledge Graph Embeddings for Protein Function
+A group project in the context of the [CDT in Biomedical AI](https://web.inf.ed.ac.uk/cdt/biomedical-ai), at the [University of Edinburgh](https://www.ed.ac.uk/).  
+Authors: [Aryo Pradipta Gema](https://aryopg.github.io/), Dominik Grabarzcyk, [Wolf De Wulf](https://wolfdewulf.eu)   
+Supervisors: [Dr. Javier Alfaro](https://www.proteogenomics.ca/), [Dr. Pasquale Minervini](https://neuralnoise.com/), [Dr. Antonio Vergari](http://nolovedeeplearning.com/), [Dr. Ajitha Rajan](https://homepages.inf.ed.ac.uk/arajan/) 
 
 
-## Setup
-### Installation
+## 1. Installation
 
+Create an [anaconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) environment using the [environment.yaml](./environment.yaml) file:
 ```
-conda update conda
 conda env create -f environment.yml
 ```
 
-### WandB API Key
-
-If you have a WandB account:
-1. Ask for an invitation from Aryo to the project page;
-2. Check [your account settings](https://wandb.ai/settings) and copy your API key.
-
+Activate the environment:
 ```
-mkdir env
-echo "WANDB_API_KEY=<YOUR WANDB API KEY>" > .env
+conda activate kge
 ```
 
-## Datasets
+Clone and install [libkge](https://github.com/uma-pi1/kge):
+```
+git clone git@github.com:uma-pi1/kge.git
+cd libkge
+pip install -e .
+```
 
-### General Statistics
+To deactivate the environment:
+```
+conda deactivate
+```
 
-**Note: OGBL-BioKG does not provide a clear description of how the data was developed**
+## 2. Knowledge Graphs
 
-| Name | Citation | Downstream tasks | Node types | Edge types |
-| --- | --- | --- | --- | --- |
-| BioKG | Walsh et al., 2019 | Link Property Prediction | - protein<br>- drugs<br>- indications<br>- diseases<br>- gene ontology<br>- expressions<br>- pathways | - protein–protein<br>- drug–protein<br>- drug–drug<br>- protein-genetic disorders<br>- protein-diseases<br>- protein–pathway<br>- disease–genetic disorder<br>- disease–pathway<br>- drug–pathway<br>- complex-pathway | 
-| OGBL-BioKG | Hu et al., 2020 | Link Property Prediction | - diseases<br>- proteins<br>- drugs<br>- side effects<br>- protein functions | - drug-drug<br>- protein-protein<br>- drug-protein<br>- drug-side effect<br>- drug-protein function<br>- function-function |
-| OGBL-PPA | Hu et al., 2020 | Link Property Prediction | - protein | - protein-protein |
-### KG properties description
+The used knowledge graphs are those from the [v1.0.0 release of BIOKG](https://github.com/dsi-bdi/biokg/releases/tag/v1.0.0):
+- BIOKG
+- BIOKG benchmarks:
+  * ddi_efficacy
+  * ddi_minerals
+  * dpi_fda
+  * dep_fda_exp
 
-This table acts as a guideline when choosing KGE architectures. The chosen architectures need to be able to treat the KG properties.
+All of these can be downloaded using the [download.py](scripts/data/download.py) script:
+```
+python scripts/data/download.py --help
+```
 
-| Name | #Entities | #Relation Types | #Triples | Directed | Symmetry | Inverse | Transitive | 1-to-N |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| BioKG | 105524 | 17 | 2067997 | Yes | Partial | Yes | Partial | Yes |
-| OGBL-BioKG | 45085 | 51 | 5088433 | Yes | Partial | Yes | Partial | Yes |
-| OGBL-PPA | 576289 | 1 | 30326273 | No | Yes | No | Partial | Yes |
+The libkge dataset format is used.
+Once downloaded, dataset folders need to be moved to ``kge/data``.
+
+## 3. Experimental evaluations
+
+### Link prediction
+All configuration files for the evaluations mentioned in the article can be found in the [configs](./configs/) folder.
+Please read through the [libkge](https://github.com/uma-pi1/kge) documentation to find out how to use them.
+
+**Warning:** The [HPO runs](configs/hpo) can take up to a week to finish and some of the generated configurations might require a high-end GPU to be able to run at all.
+During research, these HPO runs were ran on HPC clusters.
+
+### Classification benchmarks
+Evaluating a link prediction model on one of the benchmarks can be done using the [evaluate_benchmark.py](scripts/results/evaluate_benchmark.py) script:
+```
+python scripts/results/evaluate_benchmark.py --help
+```
+
+Evaluating the baseline models can be done using the []() script:
+```
+python scripts/results/evaluate_benchmark.py --help
+```
+
+## 4. Questions
+Feel free to contact any of the authors via email if you have questions. 
