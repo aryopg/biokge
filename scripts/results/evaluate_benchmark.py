@@ -191,6 +191,14 @@ def evaluate(model_path):
 
     ## Calculate scores
 
+    # Hits@1
+    valid_hits_at_1 = valid_preds.argmax(axis=1) == valid_trues.argmax(axis=1)
+    valid_hits_at_1 = sum(valid_hits_at_1) / len(valid_hits_at_1)
+    test_hits_at_1 = test_preds.argmax(axis=1) == test_trues.argmax(axis=1)
+    test_hits_at_1 = sum(test_hits_at_1) / len(test_hits_at_1)
+    print(f"Validation hits@1: {valid_hits_at_1}")
+    print(f"Test hits@1: {test_hits_at_1}")
+
     # AUROC
     valid_roc_auc = sklearn.metrics.roc_auc_score(
         valid_trues.argmax(axis=1),
