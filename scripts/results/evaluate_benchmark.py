@@ -64,7 +64,12 @@ def evaluate(model_path):
             ):
                 negatives.add((subject, relation, object))
                 count += 1
-            return negatives
+        return torch.stack(
+            [
+                torch.tensor(subject, relation, object)
+                for subject, relation, object in negatives
+            ]
+        )
 
     train_negatives = get_negatives(train_triples, [valid_triples, test_triples], [])
     valid_negatives = get_negatives(
@@ -73,167 +78,115 @@ def evaluate(model_path):
     test_negatives = get_negatives(
         test_triples, [train_triples, valid_triples], [valid_negatives]
     )
-    print(train_negatives.shape)
-    quit()
-
-    # Add negatives
-    train_triples = torch.concatenate(
-        [
-            train_triples,
-            torch.stack(
-                [
-                    torch.tensor([subject, dataset._num_relations + 1, object])
-                    for subject, object in train_negatives
-                ]
-            ),
-        ]
-    )
-    valid_triples = torch.concatenate(
-        [
-            valid_triples,
-            torch.stack(
-                [
-                    torch.tensor([subject, dataset._num_relations + 1, object])
-                    for subject, object in valid_negatives
-                ]
-            ),
-        ]
-    )
-    test_triples = torch.concatenate(
-        [
-            test_triples,
-            torch.stack(
-                [
-                    torch.tensor([subject, dataset._num_relations + 1, object])
-                    for subject, object in test_negatives
-                ]
-            ),
-        ]
-    )
 
     # Save negatives
-    numpy.savetxt("train_with_negatives.del", train_triples, fmt="%i", delimiter="\t")
-    numpy.savetxt("valid_with_negatives.del", valid_triples, fmt="%i", delimiter="\t")
-    numpy.savetxt("test_with_negatives.del", test_triples, fmt="%i", delimiter="\t")
-
-    # Get trues
-    def get_trues(triples):
-        res = {
-            (triple[0].item(), triple[2].item()): torch.zeros(dataset.num_relations + 1)
-            for triple in triples
-        }
-        for triple in triples:
-            res[triple[0].item(), triple[2].item()][triple[1].item()] = 1
-        return res
-
-    valid_trues = get_trues(valid_triples)
-    test_trues = get_trues(test_triples)
-
-    # Get predictions
-    def get_preds(triples):
-        return {
-            (triple[0].item(), triple[2].item()): torch.concatenate(
-                [
-                    model.score_spo(
-                        triple[None, 0],
-                        torch.tensor([relation], requires_grad=False).long(),
-                        triple[None, 2],
-                        "o",
-                    ).detach()
-                    for relation in range(dataset._num_relations)
-                ]
-            )
-            for triple in triples
-        }
-
-    valid_preds = get_preds(valid_triples)
-    test_preds = get_preds(test_triples)
-
-    # Transform
-    assert valid_trues.keys() == valid_preds.keys()
-    assert test_trues.keys() == test_preds.keys()
-    valid_trues = numpy.stack(list(valid_trues.values()))
-    test_trues = numpy.stack(list(test_trues.values()))
-
-    if dataset._num_relations == 1:
-        valid_preds = torch.stack(list(valid_preds.values()))  # .sigmoid()
-        valid_preds = torch.hstack([1 - valid_preds, valid_preds])
-        test_preds = torch.stack(list(test_preds.values()))  # .sigmoid()
-        test_preds = torch.hstack([1 - test_preds, test_preds])
-    elif dataset._num_relations == 2:
-        valid_preds = torch.stack(list(valid_preds.values())).numpy()
-        test_preds = torch.stack(list(test_preds.values())).numpy()
-    else:
-        valid_preds = torch.stack(list(valid_preds.values())).softmax(dim=1).numpy()
-        test_preds = torch.stack(list(test_preds.values())).softmax(dim=1).numpy()
-
-    ## Calculate scores
-
-    # Hits@1
-    valid_hits_at_1 = valid_preds.argmax(axis=1) == valid_trues.argmax(axis=1)
-    valid_hits_at_1 = sum(valid_hits_at_1) / len(valid_hits_at_1)
-    test_hits_at_1 = test_preds.argmax(axis=1) == test_trues.argmax(axis=1)
-    test_hits_at_1 = sum(test_hits_at_1) / len(test_hits_at_1)
-    print(f"Validation hits@1: {valid_hits_at_1}")
-    print(f"Test hits@1: {test_hits_at_1}")
-
-    # AUROC
-    valid_roc_auc = sklearn.metrics.roc_auc_score(
-        valid_trues.argmax(axis=1),
-        valid_preds[:, 1] if dataset._num_relations < 3 else valid_preds,
-        multi_class="ovr",
+    numpy.savetxt(
+        "train_with_negatives.del",
+        torch.concatenate([train_triples, train_negatives]),
+        fmt="%i",
+        delimiter="\t",
     )
-    test_roc_auc = sklearn.metrics.roc_auc_score(
-        test_trues.argmax(axis=1),
-        test_preds[:, 1] if dataset._num_relations < 3 else test_preds,
-        multi_class="ovr",
+    numpy.savetxt(
+        "valid_with_negatives.del",
+        torch.concatenate([valid_triples, valid_negatives]),
+        fmt="%i",
+        delimiter="\t",
     )
-    print(f"Validation AUROC: {valid_roc_auc}")
-    print(f"Test AUROC: {test_roc_auc}")
+    numpy.savetxt(
+        "test_with_negatives.del",
+        torch.concatenate([test_triples, test_negatives]),
+        fmt="%i",
+        delimiter="\t",
+    )
 
-    # AUPRC
-    valid_prc = [
-        sklearn.metrics.precision_recall_curve(
-            valid_trues[:, relation], valid_preds[:, relation]
-        )
-        for relation in range(dataset._num_relations)
-    ]
-    test_prc = [
-        sklearn.metrics.precision_recall_curve(
-            test_trues[:, relation], test_preds[:, relation]
-        )
-        for relation in range(dataset._num_relations)
-    ]
-    valid_prc_auc = [
-        sklearn.metrics.auc(relation_prc[1], relation_prc[0])
-        for relation_prc in valid_prc
-    ]
-    test_prc_auc = [
-        sklearn.metrics.auc(relation_prc[1], relation_prc[0])
-        for relation_prc in test_prc
-    ]
-    valid_prc_auc = sum(valid_prc_auc) / len(valid_prc_auc)
-    test_prc_auc = sum(test_prc_auc) / len(test_prc_auc)
-    print(f"Validation AUPRC: {valid_prc_auc}")
-    print(f"Test AUPRC: {test_prc_auc}")
+    # Calculate metrics per relation
+    for relation in range(dataset._num_relations):
 
-    # MAP
-    valid_map = [
-        sklearn.metrics.average_precision_score(
-            valid_trues[:, relation], valid_preds[:, relation]
+        # Get positive triples
+        relation_valid_pos_triples = valid_triples[valid_triples[:, 1] == relation]
+        relation_test_pos_triples = test_triples[test_triples[:, 1] == relation]
+        print(f"Positive triples for relation {relation}:")
+        print(len(relation_valid_pos_triples))
+
+        # Get negative triples
+        relation_valid_neg_triples = valid_negatives[valid_negatives[:, 1] == relation]
+        relation_test_neg_triples = test_negatives[test_negatives[:, 1] == relation]
+        print(f"Negative triples for relation {relation}:")
+        print(len(relation_valid_neg_triples))
+
+        # Combine
+        relation_valid_triples = torch.vstack(
+            [relation_valid_pos_triples, relation_valid_neg_triples]
         )
-        for relation in range(dataset._num_relations)
-    ]
-    test_map = [
-        sklearn.metrics.average_precision_score(
-            test_trues[:, relation], test_preds[:, relation]
+        relation_test_triples = torch.vstack(
+            [relation_test_pos_triples, relation_test_neg_triples]
         )
-        for relation in range(dataset._num_relations)
-    ]
-    valid_map = sum(valid_map) / len(valid_map)
-    test_map = sum(test_map) / len(test_map)
-    print(f"Validation MAP: {valid_map}")
-    print(f"Test MAP: {test_map}")
+        relation_valid_trues = torch.vstack(
+            [
+                torch.full(len(relation_valid_pos_triples), 1),
+                torch.full(len(relation_valid_neg_triples), 0),
+            ]
+        )
+        relation_test_trues = torch.vstack(
+            [
+                torch.full(len(relation_test_pos_triples), 1),
+                torch.full(len(relation_test_neg_triples), 0),
+            ]
+        )
+
+        # Get scores
+        relation_valid_scores = model.score_spo(
+            relation_valid_triples[:, 0],
+            relation_valid_triples[:, 1],
+            relation_valid_triples[:, 2],
+            "o",
+        ).detach()
+        relation_test_scores = model.score_spo(
+            relation_test_triples[:, 0],
+            relation_test_triples[:, 1],
+            relation_test_triples[:, 2],
+            "o",
+        ).detach()
+
+        ## Calculate metrics
+
+        # AUROC
+        relation_valid_roc_auc = sklearn.metrics.roc_auc_score(
+            relation_valid_trues,
+            relation_valid_scores,
+        )
+        relation_test_roc_auc = sklearn.metrics.roc_auc_score(
+            relation_test_trues,
+            relation_test_scores,
+        )
+        print(f"Validation AUROC: {relation_valid_roc_auc}")
+        print(f"Test AUROC: {relation_test_roc_auc}")
+
+        # AUPRC
+        relation_valid_prc = sklearn.metrics.precision_recall_curve(
+            relation_valid_trues, relation_valid_scores
+        )
+        relation_test_prc = sklearn.metrics.precision_recall_curve(
+            relation_test_trues, relation_test_scores
+        )
+        relation_valid_prc_auc = sklearn.metrics.auc(
+            relation_valid_prc[1], relation_valid_prc[0]
+        )
+        relation_test_prc_auc = sklearn.metrics.auc(
+            relation_test_prc[1], relation_test_prc[0]
+        )
+        print(f"Validation AUPRC: {relation_valid_prc_auc}")
+        print(f"Test AUPRC: {relation_test_prc_auc}")
+
+        # MAP
+        relation_valid_map = sklearn.metrics.average_precision_score(
+            relation_valid_trues, relation_valid_scores
+        )
+        relation_test_map = sklearn.metrics.average_precision_score(
+            relation_test_trues, relation_test_scores
+        )
+        print(f"Validation MAP: {relation_valid_map}")
+        print(f"Test MAP: {relation_test_map}")
 
 
 if __name__ == "__main__":
