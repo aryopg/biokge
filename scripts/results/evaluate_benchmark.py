@@ -96,19 +96,49 @@ def evaluate(model_path):
     # Save negatives
     numpy.savetxt(
         "train_with_negatives.del",
-        torch.concatenate([train_triples, train_negatives]),
+        torch.concatenate(
+            [
+                train_triples,
+                torch.stack(
+                    [
+                        torch.tensor([subject, dataset._num_relations, object])
+                        for subject, _, object in train_negatives
+                    ]
+                ),
+            ]
+        ),
         fmt="%i",
         delimiter="\t",
     )
     numpy.savetxt(
         "valid_with_negatives.del",
-        torch.concatenate([valid_triples, valid_negatives]),
+        torch.concatenate(
+            [
+                valid_triples,
+                torch.stack(
+                    [
+                        torch.tensor([subject, dataset._num_relations, object])
+                        for subject, _, object in valid_negatives
+                    ]
+                ),
+            ]
+        ),
         fmt="%i",
         delimiter="\t",
     )
     numpy.savetxt(
         "test_with_negatives.del",
-        torch.concatenate([test_triples, test_negatives]),
+        torch.concatenate(
+            [
+                test_triples,
+                torch.stack(
+                    [
+                        torch.tensor([subject, dataset._num_relations, object])
+                        for subject, _, object in test_negatives
+                    ]
+                ),
+            ]
+        ),
         fmt="%i",
         delimiter="\t",
     )
@@ -144,13 +174,13 @@ def evaluate(model_path):
         relation_test_triples = torch.vstack(
             [relation_test_pos_triples, relation_test_neg_triples]
         )
-        relation_valid_trues = torch.vstack(
+        relation_valid_trues = torch.concatenate(
             [
                 torch.full((len(relation_valid_pos_triples),), 1),
                 torch.full((len(relation_valid_neg_triples),), 0),
             ]
         )
-        relation_test_trues = torch.vstack(
+        relation_test_trues = torch.concatenate(
             [
                 torch.full((len(relation_test_pos_triples),), 1),
                 torch.full((len(relation_test_neg_triples),), 0),
