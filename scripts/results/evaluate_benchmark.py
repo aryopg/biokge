@@ -147,14 +147,14 @@ def evaluate(model_path):
         )
         relation_valid_trues = torch.vstack(
             [
-                torch.full(len(relation_valid_pos_triples), 1),
-                torch.full(len(relation_valid_neg_triples), 0),
+                torch.full(relation_valid_pos_triples.shape, 1),
+                torch.full(relation_valid_neg_triples.shape, 0),
             ]
         )
         relation_test_trues = torch.vstack(
             [
-                torch.full(len(relation_test_pos_triples), 1),
-                torch.full(len(relation_test_neg_triples), 0),
+                torch.full(relation_test_pos_triples.shape, 1),
+                torch.full(relation_test_neg_triples.shape, 0),
             ]
         )
 
@@ -176,7 +176,7 @@ def evaluate(model_path):
 
         # AUROC
         auc_roc.append(
-            [
+            (
                 sklearn.metrics.roc_auc_score(
                     relation_valid_trues, relation_valid_scores
                 ),
@@ -184,7 +184,7 @@ def evaluate(model_path):
                     relation_test_trues,
                     relation_test_scores,
                 ),
-            ]
+            )
         )
 
         # AUPRC
