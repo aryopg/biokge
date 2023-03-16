@@ -64,12 +64,7 @@ def evaluate(model_path):
             ):
                 negatives.add((subject, relation, object))
                 count += 1
-        return torch.stack(
-            [
-                torch.tensor([subject, relation, object])
-                for subject, relation, object in negatives
-            ]
-        )
+        return negatives
 
     train_negatives = get_negatives(train_triples, [valid_triples, test_triples], [])
     valid_negatives = get_negatives(
@@ -77,6 +72,26 @@ def evaluate(model_path):
     )
     test_negatives = get_negatives(
         test_triples, [train_triples, valid_triples], [train_negatives, valid_negatives]
+    )
+
+    # Stack
+    train_negatives = torch.stack(
+        [
+            torch.tensor([subject, relation, object])
+            for subject, relation, object in train_negatives
+        ]
+    )
+    valid_negatives = torch.stack(
+        [
+            torch.tensor([subject, relation, object])
+            for subject, relation, object in valid_negatives
+        ]
+    )
+    test_negatives = torch.stack(
+        [
+            torch.tensor([subject, relation, object])
+            for subject, relation, object in test_negatives
+        ]
     )
 
     # Save negatives
@@ -100,13 +115,14 @@ def evaluate(model_path):
     )
 
     # Calculate metrics per relation
+    auc_roc = []
+    auc_prc = []
+    map = []
     for relation in range(dataset._num_relations):
 
         # Get positive triples
         relation_valid_pos_triples = valid_triples[valid_triples[:, 1] == relation, :]
         relation_test_pos_triples = test_triples[test_triples[:, 1] == relation, :]
-        print(f"Positive triples for relation {relation}:")
-        print(len(relation_valid_pos_triples))
 
         # Get negative triples
         relation_valid_neg_triples = valid_negatives[
@@ -121,8 +137,6 @@ def evaluate(model_path):
             ),
             :,
         ]
-        print(f"Negative triples for relation {relation}:")
-        print(len(relation_valid_neg_triples))
 
         # Combine
         relation_valid_triples = torch.vstack(
@@ -161,16 +175,17 @@ def evaluate(model_path):
         ## Calculate metrics
 
         # AUROC
-        relation_valid_roc_auc = sklearn.metrics.roc_auc_score(
-            relation_valid_trues,
-            relation_valid_scores,
+        auc_roc.append(
+            [
+                sklearn.metrics.roc_auc_score(
+                    relation_valid_trues, relation_valid_scores
+                ),
+                sklearn.metrics.roc_auc_score(
+                    relation_test_trues,
+                    relation_test_scores,
+                ),
+            ]
         )
-        relation_test_roc_auc = sklearn.metrics.roc_auc_score(
-            relation_test_trues,
-            relation_test_scores,
-        )
-        print(f"Validation AUROC: {relation_valid_roc_auc}")
-        print(f"Test AUROC: {relation_test_roc_auc}")
 
         # AUPRC
         relation_valid_prc = sklearn.metrics.precision_recall_curve(
@@ -179,24 +194,44 @@ def evaluate(model_path):
         relation_test_prc = sklearn.metrics.precision_recall_curve(
             relation_test_trues, relation_test_scores
         )
-        relation_valid_prc_auc = sklearn.metrics.auc(
-            relation_valid_prc[1], relation_valid_prc[0]
+        auc_prc.append(
+            (
+                sklearn.metrics.auc(relation_valid_prc[1], relation_valid_prc[0]),
+                sklearn.metrics.auc(relation_test_prc[1], relation_test_prc[0]),
+            )
         )
-        relation_test_prc_auc = sklearn.metrics.auc(
-            relation_test_prc[1], relation_test_prc[0]
-        )
-        print(f"Validation AUPRC: {relation_valid_prc_auc}")
-        print(f"Test AUPRC: {relation_test_prc_auc}")
 
         # MAP
-        relation_valid_map = sklearn.metrics.average_precision_score(
-            relation_valid_trues, relation_valid_scores
+        map.append(
+            (
+                sklearn.metrics.average_precision_score(
+                    relation_valid_trues, relation_valid_scores
+                ),
+                sklearn.metrics.average_precision_score(
+                    relation_test_trues, relation_test_scores
+                ),
+            )
         )
-        relation_test_map = sklearn.metrics.average_precision_score(
-            relation_test_trues, relation_test_scores
-        )
-        print(f"Validation MAP: {relation_valid_map}")
-        print(f"Test MAP: {relation_test_map}")
+
+    # Print relation average
+    print(
+        f"Validation AUROC = {sum([valid_auc_roc for valid_auc_roc, _ in auc_roc]) / dataset._num_relations}"
+    )
+    print(
+        f"Testing AUROC    = {sum([test_auc_roc for _, test_auc_roc in auc_roc]) / dataset._num_relations}"
+    )
+    print(
+        f"Validation AUPRC = {sum([valid_auc_prc for valid_auc_prc, _ in auc_prc]) / dataset._num_relations}"
+    )
+    print(
+        f"Testing AUPRC    = {sum([test_auc_prc for _, test_auc_prc in auc_prc]) / dataset._num_relations}"
+    )
+    print(
+        f"Validation MAP   = {sum([valid_map for valid_map, _ in map]) / dataset._num_relations}"
+    )
+    print(
+        f"Testing MAP      = {sum([test_map for _, test_map in map]) / dataset._num_relations}"
+    )
 
 
 if __name__ == "__main__":
