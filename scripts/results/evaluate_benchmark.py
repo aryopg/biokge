@@ -45,7 +45,7 @@ def evaluate(model_path):
         while count != int(len(triples) * ratio):
             subject = random.randrange(dataset._num_entities)
             object = random.randrange(dataset._num_entities)
-            relation = random.randrange(dataset.num_relations)
+            relation = random.randrange(dataset._num_relations)
             if (
                 (adjacency_matrix[subject, object] != relation)
                 and all(
@@ -66,7 +66,7 @@ def evaluate(model_path):
                 count += 1
         return torch.stack(
             [
-                torch.tensor(subject, relation, object)
+                torch.tensor([subject, relation, object])
                 for subject, relation, object in negatives
             ]
         )
@@ -76,7 +76,7 @@ def evaluate(model_path):
         valid_triples, [train_triples, test_triples], [train_negatives]
     )
     test_negatives = get_negatives(
-        test_triples, [train_triples, valid_triples], [valid_negatives]
+        test_triples, [train_triples, valid_triples], [train_negatives, valid_negatives]
     )
 
     # Save negatives
@@ -103,14 +103,24 @@ def evaluate(model_path):
     for relation in range(dataset._num_relations):
 
         # Get positive triples
-        relation_valid_pos_triples = valid_triples[valid_triples[:, 1] == relation]
-        relation_test_pos_triples = test_triples[test_triples[:, 1] == relation]
+        relation_valid_pos_triples = valid_triples[valid_triples[:, 1] == relation, :]
+        relation_test_pos_triples = test_triples[test_triples[:, 1] == relation, :]
         print(f"Positive triples for relation {relation}:")
         print(len(relation_valid_pos_triples))
 
         # Get negative triples
-        relation_valid_neg_triples = valid_negatives[valid_negatives[:, 1] == relation]
-        relation_test_neg_triples = test_negatives[test_negatives[:, 1] == relation]
+        relation_valid_neg_triples = valid_negatives[
+            random.sample(
+                range(0, len(valid_negatives)), len(relation_valid_pos_triples)
+            ),
+            :,
+        ]
+        relation_test_neg_triples = test_negatives[
+            random.sample(
+                range(0, len(test_negatives)), len(relation_test_pos_triples)
+            ),
+            :,
+        ]
         print(f"Negative triples for relation {relation}:")
         print(len(relation_valid_neg_triples))
 
