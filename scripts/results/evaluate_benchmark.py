@@ -21,127 +21,105 @@ def evaluate(model_path):
     valid_triples = dataset.load_triples("valid")
     test_triples = dataset.load_triples("test")
 
-    if dataset._num_relations == 1:
-        random.seed(42)
-        subjects = set(
-            list(
-                itertools.chain.from_iterable(
+    # Set seed
+    random.seed(42)
+
+    # Create negative samples
+    def get_negatives(triples, others_triples, others_negatives, ratio=1):
+        def get_adjacency_matrix(triples):
+            matrix = numpy.full(
+                (dataset._num_entities, dataset._num_entities),
+                fill_value=-1,
+                dtype=numpy.byte,
+            )
+            matrix[triples[:, 0], triples[:, 2]] = triples[:, 1]
+            return matrix
+
+        adjacency_matrix = get_adjacency_matrix(triples)
+        adjacency_others = [
+            get_adjacency_matrix(other_triples) for other_triples in others_triples
+        ]
+
+        count = 0
+        negatives = set()
+        while count != int(len(triples) * ratio):
+            subject = random.sample(range(dataset._num_entities), 1)[0]
+            object = random.sample(range(dataset._num_entities), 1)[0]
+            relation = random.sample(range(dataset.num_relations), 1)[0]
+            if (
+                (adjacency_matrix[subject, object] != relation)
+                and all(
                     [
-                        triples[:, 0].tolist()
-                        for triples in [train_triples, valid_triples, test_triples]
+                        adjacency_other[subject, object] != relation
+                        for adjacency_other in adjacency_others
                     ]
                 )
-            )
-        )
-        objects = set(
-            list(
-                itertools.chain.from_iterable(
+                and (subject, relation, object) not in negatives
+                and all(
                     [
-                        triples[:, 2].tolist()
-                        for triples in [train_triples, valid_triples, test_triples]
+                        (subject, relation, object) not in other_negatives
+                        for other_negatives in others_negatives
                     ]
                 )
-            )
-        )
-
-        def get_negatives(triples, others_triples, others_negatives, ratio=1):
-            def get_adjacency_matrix(triples):
-                matrix = numpy.zeros(
-                    (dataset._num_entities, dataset._num_entities), dtype=bool
-                )
-                matrix[triples[:, 0], triples[:, 2]] = 1
-                return matrix
-
-            adjacency_matrix = get_adjacency_matrix(triples)
-            adjacency_others = [
-                get_adjacency_matrix(other_triples) for other_triples in others_triples
-            ]
-
-            count = 0
-            negatives = set()
-            while count != int(len(triples) * ratio):
-                subject = random.sample(subjects, 1)[0]
-                object = random.sample(objects, 1)[0]
-                if (
-                    (adjacency_matrix[subject, object] == 0)
-                    and all(
-                        [
-                            adjacency_other[subject, object] == 0
-                            for adjacency_other in adjacency_others
-                        ]
-                    )
-                    and (subject, object) not in negatives
-                    and all(
-                        [
-                            (subject, object) not in other_negatives
-                            for other_negatives in others_negatives
-                        ]
-                    )
-                ):
-                    negatives.add((subject, object))
-                    count += 1
+            ):
+                negatives.add((subject, relation, object))
+                count += 1
             return negatives
 
-        valid_negatives = get_negatives(
-            valid_triples, [train_triples, test_triples], []
-        )
-        test_negatives = get_negatives(
-            test_triples, [train_triples, valid_triples], [valid_negatives]
-        )
+    train_negatives = get_negatives(train_triples, [valid_triples, test_triples], [])
+    valid_negatives = get_negatives(
+        valid_triples, [train_triples, test_triples], [train_negatives]
+    )
+    test_negatives = get_negatives(
+        test_triples, [train_triples, valid_triples], [valid_negatives]
+    )
+    print(train_negatives.shape)
+    quit()
 
-        # Swap relation to correct binary code
-        valid_triples[:, 1] = torch.full(
-            (
-                len(
-                    valid_triples,
-                ),
+    # Add negatives
+    train_triples = torch.concatenate(
+        [
+            train_triples,
+            torch.stack(
+                [
+                    torch.tensor([subject, dataset._num_relations + 1, object])
+                    for subject, object in train_negatives
+                ]
             ),
-            1,
-        )
-        test_triples[:, 1] = torch.full(
-            (
-                len(
-                    test_triples,
-                ),
+        ]
+    )
+    valid_triples = torch.concatenate(
+        [
+            valid_triples,
+            torch.stack(
+                [
+                    torch.tensor([subject, dataset._num_relations + 1, object])
+                    for subject, object in valid_negatives
+                ]
             ),
-            1,
-        )
-        # Add negatives
-        valid_triples = torch.concatenate(
-            [
-                valid_triples,
-                torch.stack(
-                    [
-                        torch.tensor([subject, 0, object])
-                        for subject, object in valid_negatives
-                    ]
-                ),
-            ]
-        )
-        test_triples = torch.concatenate(
-            [
-                test_triples,
-                torch.stack(
-                    [
-                        torch.tensor([subject, 0, object])
-                        for subject, object in test_negatives
-                    ]
-                ),
-            ]
-        )
+        ]
+    )
+    test_triples = torch.concatenate(
+        [
+            test_triples,
+            torch.stack(
+                [
+                    torch.tensor([subject, dataset._num_relations + 1, object])
+                    for subject, object in test_negatives
+                ]
+            ),
+        ]
+    )
 
-        # Save negatives
-        numpy.savetxt(
-            "valid_with_negatives.del", valid_triples, fmt="%i", delimiter="\t"
-        )
-        numpy.savetxt("test_with_negatives.del", test_triples, fmt="%i", delimiter="\t")
+    # Save negatives
+    numpy.savetxt("train_with_negatives.del", train_triples, fmt="%i", delimiter="\t")
+    numpy.savetxt("valid_with_negatives.del", valid_triples, fmt="%i", delimiter="\t")
+    numpy.savetxt("test_with_negatives.del", test_triples, fmt="%i", delimiter="\t")
 
     # Get trues
     def get_trues(triples):
         res = {
-            (triple[0].item(), triple[2].item()): torch.zeros(
-                max(dataset._num_relations, 2)
-            )
+            (triple[0].item(), triple[2].item()): torch.zeros(dataset.num_relations + 1)
             for triple in triples
         }
         for triple in triples:
