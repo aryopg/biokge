@@ -1,5 +1,4 @@
 import argparse
-import itertools
 import random
 
 import numpy
@@ -147,14 +146,14 @@ def evaluate(model_path):
         )
         relation_valid_trues = torch.vstack(
             [
-                torch.full(relation_valid_pos_triples.shape, 1),
-                torch.full(relation_valid_neg_triples.shape, 0),
+                torch.full((len(relation_valid_pos_triples),), 1),
+                torch.full((len(relation_valid_neg_triples),), 0),
             ]
         )
         relation_test_trues = torch.vstack(
             [
-                torch.full(relation_test_pos_triples.shape, 1),
-                torch.full(relation_test_neg_triples.shape, 0),
+                torch.full((len(relation_test_pos_triples),), 1),
+                torch.full((len(relation_test_neg_triples),), 0),
             ]
         )
 
@@ -181,8 +180,7 @@ def evaluate(model_path):
                     relation_valid_trues, relation_valid_scores
                 ),
                 sklearn.metrics.roc_auc_score(
-                    relation_test_trues,
-                    relation_test_scores,
+                    relation_test_trues, relation_test_scores
                 ),
             )
         )
