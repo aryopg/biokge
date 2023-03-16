@@ -43,9 +43,9 @@ def evaluate(model_path):
         count = 0
         negatives = set()
         while count != int(len(triples) * ratio):
-            subject = random.sample(range(dataset._num_entities), 1)[0]
-            object = random.sample(range(dataset._num_entities), 1)[0]
-            relation = random.sample(range(dataset.num_relations), 1)[0]
+            subject = random.randrange(dataset._num_entities)
+            object = random.randrange(dataset._num_entities)
+            relation = random.randrange(dataset.num_relations)
             if (
                 (adjacency_matrix[subject, object] != relation)
                 and all(
