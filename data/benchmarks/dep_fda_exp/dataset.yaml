@@ -1,0 +1,20 @@
+dataset:
+  files.entity_ids.filename: entity_ids.del
+  files.entity_ids.type: map
+  files.relation_ids.filename: relation_ids.del
+  files.relation_ids.type: map
+  files.test.filename: test.del
+  files.test.size: 92674
+  files.test.split_type: test
+  files.test.type: triples
+  files.train.filename: train.del
+  files.train.size: 741386
+  files.train.split_type: train
+  files.train.type: triples
+  files.valid.filename: valid.del
+  files.valid.size: 92673
+  files.valid.split_type: valid
+  files.valid.type: triples
+  name: dep_fda_exp
+  num_entities: 118687
+  num_relations: 2

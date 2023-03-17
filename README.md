@@ -1,6 +1,6 @@
 # Evaluating Knowledge Graph Embeddings for Protein Function
 A group project in the context of the [CDT in Biomedical AI](https://web.inf.ed.ac.uk/cdt/biomedical-ai), at the [University of Edinburgh](https://www.ed.ac.uk/).  
-Authors: [Aryo Pradipta Gema](https://aryopg.github.io/), Dominik Grabarzcyk, [Wolf De Wulf](https://wolfdewulf.eu)   
+Authors: [Aryo Pradipta Gema](https://aryopg.github.io/), [Dominik Grabarzcyk](), [Wolf De Wulf](https://wolfdewulf.eu)   
 Supervisors: [Dr. Javier Alfaro](https://www.proteogenomics.ca/), [Dr. Pasquale Minervini](https://neuralnoise.com/), [Dr. Antonio Vergari](http://nolovedeeplearning.com/), [Dr. Ajitha Rajan](https://homepages.inf.ed.ac.uk/arajan/) 
 
 
@@ -38,32 +38,30 @@ The used knowledge graphs are those from the [v1.0.0 release of BIOKG](https://g
   * dpi_fda
   * dep_fda_exp
 
-All of these can be downloaded using the [download.py](scripts/data/download.py) script:
+Either download the datasets from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/EtDFFnJ9VtFNht6y3RB45DwBbio3b8VyYXNB5-lcSTx2Pg?e=RsfeU7), or download them using the [download.py](scripts/data/download.py) script:
 ```
 python scripts/data/download.py --help
 ```
+The set seed ensures that they are the same.
 
 The libkge dataset format is used.
 Once downloaded, dataset folders need to be moved to ``kge/data``.
 
-## 3. Experimental evaluations
+## 3. Experimental Evaluations
 
 ### Link prediction
-All configuration files for the evaluations mentioned in the article can be found in the [configs](./configs/) folder.
-Please read through the [libkge](https://github.com/uma-pi1/kge) documentation to find out how to use them.
+All configuration files for the link prediction evaluations mentioned in the article can be found in the [configs/link_prediction](./configs/link_prediction) folder.
+Please read through the [libkge](https://github.com/uma-pi1/kge) documentation to find out how to use them.  
+To be able to run the evaluations where models are initialised with pretrained embeddings, make sure to download the ``models'' folder from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/EtDFFnJ9VtFNht6y3RB45DwBbio3b8VyYXNB5-lcSTx2Pg?e=RsfeU7).
 
 **Warning:** The [HPO runs](configs/hpo) can take up to a week to finish and some of the generated configurations might require a high-end GPU to be able to run at all.
 During research, these HPO runs were ran on HPC clusters.
 
-### Classification benchmarks
-Evaluating a link prediction model on one of the benchmarks can be done using the [evaluate_benchmark.py](scripts/results/evaluate_benchmark.py) script:
+### Relation Classification
+All configuration files for the relation classification evaluations mentioned in the article can be found in the [configs/relation_classification](./configs/relation_classication) folder.  
+To reproduce our results, use the [relation_classification.py](scripts/benchmarking/relation_classification.py) script in combination with one of the config files:
 ```
-python scripts/results/evaluate_benchmark.py --help
-```
-
-Evaluating the baseline models can be done using the []() script:
-```
-python scripts/results/evaluate_benchmark.py --help
+python scripts/benchmarks/relation_classification.py --help
 ```
 
 ## 4. Questions

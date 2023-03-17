@@ -1,0 +1,18 @@
+dataset_configs:
+  datasets_dir: kge/data
+  tasks:
+    - ddi_minerals
+  train_frac: 0.8
+  valid_frac: 0.1
+model_configs:
+  model_type: "fc"
+  hidden_size: 512
+  batch_size: 512
+  grad_clip: 1
+  learning_rate: 1e-4
+testing_configs:
+  epochs: 100
+  freeze_embedding: False
+  device: 0
+  random_seed: 1234
+  outputs_dir: "outputs"
