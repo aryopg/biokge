@@ -38,7 +38,7 @@ The used knowledge graphs are those from the [v1.0.0 release of BIOKG](https://g
   * dpi_fda
   * dep_fda_exp
 
-Either download the datasets from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/EtDFFnJ9VtFNht6y3RB45DwBbio3b8VyYXNB5-lcSTx2Pg?e=RsfeU7), or download them using the [download.py](scripts/data/download.py) script:
+Either download the datasets from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/Eta5QmbHQndPrvyZhNPROF0BBJ1T1nXPgtlHmGjxMxbpcg?e=ZFjTQY), or download them using the [download.py](scripts/data/download.py) script:
 ```
 python scripts/data/download.py --help
 ```
@@ -52,7 +52,7 @@ Once downloaded, dataset folders need to be moved to ``kge/data``.
 ### Link prediction
 All configuration files for the link prediction evaluations mentioned in the article can be found in the [configs/link_prediction](./configs/link_prediction) folder.  
 Please read through the [libkge](https://github.com/uma-pi1/kge) documentation to find out how to use them.  
-To be able to run the evaluations where models are initialised with pretrained embeddings, make sure to download the ``models`` folder from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/EtDFFnJ9VtFNht6y3RB45DwBbio3b8VyYXNB5-lcSTx2Pg?e=RsfeU7).
+To be able to run the evaluations where models are initialised with pretrained embeddings, make sure to download the ``models`` folder from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/Eta5QmbHQndPrvyZhNPROF0BBJ1T1nXPgtlHmGjxMxbpcg?e=ZFjTQY).
 
 **Warning:** The [HPO runs](configs/hpo) can take up to a week to finish and some of the generated configurations might require a high-end GPU to be able to run at all.
 During research, these HPO runs were ran on HPC clusters.
