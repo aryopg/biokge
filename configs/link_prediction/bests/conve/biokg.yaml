@@ -1,0 +1,403 @@
+1vsAll:
+  class_name: TrainingJob1vsAll
+KvsAll:
+  class_name: TrainingJobKvsAll
+  label_smoothing: 0.0
+  query_types:
+    _po: true
+    s_o: false
+    sp_: true
+ax_search:
+  class_name: AxSearchJob
+  num_sobol_trials: 30
+  num_trials: 30
+  parameter_constraints: []
+  parameters:
+  - name: model
+    type: fixed
+    value: reciprocal_relations_model
+  - is_ordered: true
+    name: train.batch_size
+    type: choice
+    value_type: int
+    values:
+    - 128
+    - 256
+    - 512
+    - 1024
+  - name: train.type
+    type: fixed
+    value: 1vsAll
+  - is_ordered: false
+    name: train.optimizer.default.type
+    type: choice
+    value_type: str
+    values:
+    - Adam
+    - Adagrad
+  - name: train.loss
+    type: fixed
+    value: kl
+  - bounds:
+    - 0.0003
+    - 1.0
+    log_scale: true
+    name: train.optimizer.default.args.lr
+    type: range
+    value_type: float
+  - name: train.lr_scheduler
+    type: fixed
+    value: ReduceLROnPlateau
+  - name: train.lr_scheduler_args.mode
+    type: fixed
+    value: max
+  - name: train.lr_scheduler_args.factor
+    type: fixed
+    value: 0.95
+  - name: train.lr_scheduler_args.threshold
+    type: fixed
+    value: 0.0001
+  - bounds:
+    - 0
+    - 10
+    name: train.lr_scheduler_args.patience
+    type: range
+    value_type: int
+  - is_ordered: true
+    name: lookup_embedder.dim
+    type: choice
+    value_type: int
+    values:
+    - 128
+    - 256
+    - 512
+    - 1024
+  - is_ordered: false
+    name: lookup_embedder.initialize
+    type: choice
+    value_type: str
+    values:
+    - xavier_normal_
+    - xavier_uniform_
+    - normal_
+    - uniform_
+  - name: lookup_embedder.initialize_args.normal_.mean
+    type: fixed
+    value: 0.0
+  - bounds:
+    - 1.0e-05
+    - 1.0
+    log_scale: true
+    name: lookup_embedder.initialize_args.normal_.std
+    type: range
+    value_type: float
+  - bounds:
+    - -1.0
+    - -1.0e-05
+    name: lookup_embedder.initialize_args.uniform_.a
+    type: range
+    value_type: float
+  - name: lookup_embedder.initialize_args.xavier_uniform_.gain
+    type: fixed
+    value: 1.0
+  - name: lookup_embedder.initialize_args.xavier_normal_.gain
+    type: fixed
+    value: 1.0
+  - is_ordered: true
+    name: lookup_embedder.regularize
+    type: choice
+    value_type: str
+    values:
+    - ''
+    - lp
+  - is_ordered: true
+    name: lookup_embedder.regularize_args.p
+    type: choice
+    value_type: int
+    values:
+    - 1
+    - 2
+    - 3
+  - is_ordered: false
+    name: lookup_embedder.regularize_args.weighted
+    type: choice
+    value_type: bool
+    values:
+    - true
+    - false
+  - bounds:
+    - 1.0e-20
+    - 0.1
+    log_scale: true
+    name: conve.entity_embedder.regularize_weight
+    type: range
+    value_type: float
+  - bounds:
+    - 1.0e-20
+    - 0.1
+    log_scale: true
+    name: conve.relation_embedder.regularize_weight
+    type: range
+    value_type: float
+  - bounds:
+    - -0.5
+    - 0.5
+    name: conve.entity_embedder.dropout
+    type: range
+    value_type: float
+  - bounds:
+    - -0.5
+    - 0.5
+    name: conve.relation_embedder.dropout
+    type: range
+    value_type: float
+  - name: conve.round_dim
+    type: fixed
+    value: true
+  sobol_seed: 0
+console:
+  format: {}
+  quiet: false
+conve:
+  2D_aspect_ratio: 2
+  class_name: ConvE
+  convolution_bias: true
+  entity_embedder:
+    +++: +++
+    dropout: -0.18433461524546146
+    regularize_weight: 5.739933905238503e-19
+    type: lookup_embedder
+  feature_map_dropout: 0.2
+  filter_size: 3
+  padding: 0
+  projection_dropout: 0.3
+  relation_embedder:
+    +++: +++
+    dropout: 0.3942223796620965
+    regularize_weight: 2.677586021605096e-08
+    type: lookup_embedder
+  round_dim: true
+  stride: 1
+dataset:
+  +++: +++
+  files:
+    +++: +++
+    entity_ids:
+      filename: entity_ids.del
+      type: map
+    entity_strings:
+      filename: entity_ids.del
+      type: map
+    relation_ids:
+      filename: relation_ids.del
+      type: map
+    relation_strings:
+      filename: relation_ids.del
+      type: map
+    test:
+      filename: test.del
+      size: 206800
+      split_type: test
+      type: triples
+    train:
+      filename: train.del
+      size: 1654397
+      split_type: train
+      type: triples
+    valid:
+      filename: valid.del
+      size: 206800
+      split_type: valid
+      type: triples
+  name: biokg
+  num_entities: 105524
+  num_relations: 17
+  pickle: true
+entity_ranking:
+  chunk_size: -1
+  class_name: EntityRankingJob
+  filter_splits:
+  - train
+  - valid
+  filter_with_test: true
+  hits_at_k_s:
+  - 1
+  - 3
+  - 10
+  - 50
+  - 100
+  - 200
+  - 300
+  - 400
+  - 500
+  - 1000
+  metrics_per:
+    argument_frequency: false
+    head_and_tail: false
+    relation_type: true
+  tie_handling:
+    atol: 1e-05
+    rtol: 1e-04
+    type: rounded_mean_rank
+    warn_only: true
+eval:
+  batch_size: 256
+  num_workers: 0
+  pin_memory: false
+  split: test
+  trace_level: epoch
+  type: entity_ranking
+grash_search:
+  class_name: GraSHSearchJob
+  cost_metric: triples
+  eta: 4
+  keep_initialization: false
+  keep_pretrained: false
+  min_negatives_percentage: 0.01
+  num_trials: 64
+  parameters: []
+  search_budget: 3
+  seed: -1
+  valid_frac: 0.2
+  valid_max: 5000
+  variant: combined
+grid_search:
+  class_name: GridSearchJob
+  parameters:
+    +++: +++
+  run: true
+import:
+- conve
+- reciprocal_relations_model
+job:
+  auto_correct: true
+  device: cuda
+  type: train
+lookup_embedder:
+  class_name: LookupEmbedder
+  dim: 1024
+  dropout: 0.0
+  initialize: normal_
+  initialize_args:
+    +++: +++
+    normal_:
+      mean: 0.0
+      std: 0.001261675140057653
+    uniform_:
+      a: -0.1960952337347157
+    xavier_normal_:
+      gain: 1.0
+    xavier_uniform_:
+      gain: 1.0
+  normalize:
+    p: -1.0
+  pretrain:
+    ensure_all: false
+    model_filename: ''
+  regularize: ''
+  regularize_args:
+    +++: +++
+    p: 2
+    weighted: true
+  regularize_weight: 0.0
+  round_dim_to: []
+  space: euclidean
+  sparse: false
+manual_search:
+  class_name: ManualSearchJob
+  configurations: []
+  run: true
+model: reciprocal_relations_model
+modules:
+- kge.job
+- kge.model
+- kge.model.embedder
+negative_sampling:
+  class_name: TrainingJobNegativeSampling
+  filtering:
+    implementation: fast_if_available
+    o: false
+    p: false
+    s: false
+    split: ''
+  frequency:
+    smoothing: 1
+  implementation: auto
+  num_samples:
+    o: -1
+    p: 0
+    s: 3
+  sampling_type: uniform
+  shared: false
+  shared_type: default
+  with_replacement: true
+random_seed:
+  default: 42
+  numba: 42
+  numpy: 42
+  python: 42
+  torch: 42
+reciprocal_relations_model:
+  base_model:
+    +++: +++
+    type: conve
+  class_name: ReciprocalRelationsModel
+search:
+  device_pool:
+  - cuda:0
+  - cuda:1
+  - cuda:2
+  - cuda:3
+  num_workers: 4
+  on_error: abort
+  type: ax_search
+train:
+  abort_on_nan: true
+  batch_size: 512
+  checkpoint:
+    every: 5
+    keep: 3
+    keep_init: true
+  loss: kl
+  loss_arg: .nan
+  lr_scheduler: ReduceLROnPlateau
+  lr_scheduler_args:
+    +++: +++
+    factor: 0.95
+    mode: max
+    patience: 10
+    threshold: 0.0001
+  lr_warmup: 0
+  max_epochs: 200
+  num_workers: 0
+  optimizer:
+    +++: +++
+    default:
+      args:
+        +++: +++
+        lr: 0.002016458298942129
+      type: Adagrad
+  pin_memory: false
+  split: train
+  subbatch_auto_tune: false
+  subbatch_size: -1
+  trace_level: epoch
+  type: 1vsAll
+  visualize_graph: false
+training_loss:
+  class_name: TrainingLossEvaluationJob
+user:
+  +++: +++
+valid:
+  early_stopping:
+    patience: 10
+    threshold:
+      epochs: 50
+      metric_value: 0.05
+  every: 2
+  last: true
+  metric: mean_reciprocal_rank_filtered_with_test
+  metric_expr: float("nan")
+  metric_max: true
+  split: valid
+  trace_level: epoch
