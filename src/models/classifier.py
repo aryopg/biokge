@@ -9,7 +9,6 @@ class Classifier(torch.nn.Module):
         self.num_relations = num_relations
         self.rank = rank
 
-        print(f"entity_size: {entity_size}")
         self.entity_embeddings = torch.nn.Embedding(entity_size, rank)
         self.classifier = torch.nn.Linear(rank * 2, num_relations)
 

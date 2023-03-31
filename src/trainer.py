@@ -1,8 +1,9 @@
 import torch
 import tqdm
-import wandb
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+
+import wandb
 
 from .evaluators.classification_evaluator import calculate_metrics
 from .models.classifier import Classifier
@@ -42,9 +43,16 @@ class Trainer:
 
     def load_embedding_weights(self, pretrained_model_path, freeze_embedding=True):
         model_state_dict = torch.load(pretrained_model_path, map_location=self.device)
-        self.model.entity_embeddings.weight.data = model_state_dict["model"][0][
+        pretrained_weight = model_state_dict["model"][0][
             "_entity_embedder._embeddings.weight"
         ]
+        num_oov_tokens = pretrained_weight.size(
+            0
+        ) - self.model.entity_embeddings.weight.data.size(0)
+        if num_oov_tokens >= 0:
+            num_oov_vectors = torch.zeros((num_oov_tokens, pretrained_weight.size(1)))
+            pretrained_weight = torch.cat((pretrained_weight, num_oov_vectors), dim=0)
+        self.model.entity_embeddings.weight.data = pretrained_weight
         if freeze_embedding:
             self.model.entity_embeddings.weight.requires_grad = False
 
@@ -84,7 +92,7 @@ class Trainer:
             predictions = self.model(batch_inputs)
             # print(predictions)
             if self.num_relations > 1:
-                loss = self.loss_fn(F.log_softmax(predictions), batch_labels)
+                loss = self.loss_fn(F.log_softmax(predictions, dim=-1), batch_labels)
             else:
                 loss = self.loss_fn(torch.sigmoid(predictions).squeeze(), batch_labels)
 

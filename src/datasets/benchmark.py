@@ -6,7 +6,13 @@ import pandas
 
 class BenchmarkLibKGEDataset:
     def __init__(
-        self, config, task, from_scratch, multilabel: bool, negative_samples_ratio: int
+        self,
+        config,
+        task,
+        pretrained_entity_ids_path,
+        from_scratch,
+        multilabel: bool,
+        negative_samples_ratio: int,
     ):
         """
         Initialisation
@@ -18,6 +24,7 @@ class BenchmarkLibKGEDataset:
         self.train_frac = config.train_frac
         self.valid_frac = config.valid_frac
 
+        self.pretrained_entity_ids_path = pretrained_entity_ids_path
         self.from_scratch = from_scratch
         self.multilabel = multilabel
         self.negative_samples_ratio = negative_samples_ratio
@@ -46,11 +53,18 @@ class BenchmarkLibKGEDataset:
         )
 
     def _load_entity_vocab(self, task):
-        id_entity = pandas.read_csv(
-            os.path.join(self.datasets_dir, task, "entity_ids.del"),
-            names=["idx", "entity"],
-            sep="\t",
-        )
+        if self.pretrained_entity_ids_path:
+            id_entity = pandas.read_csv(
+                self.pretrained_entity_ids_path,
+                names=["idx", "entity"],
+                sep="\t",
+            )
+        else:
+            id_entity = pandas.read_csv(
+                os.path.join(self.datasets_dir, task, "entity_ids.del"),
+                names=["idx", "entity"],
+                sep="\t",
+            )
         self.entity_voc = {
             entity: idx for idx, entity in zip(id_entity.idx, id_entity.entity)
         }
@@ -67,14 +81,6 @@ class BenchmarkLibKGEDataset:
                 + list(self.test_dataset["relation"].unique())
             )
         )
-        all_data = pandas.concat(
-            [self.train_dataset, self.valid_dataset, self.test_dataset]
-        )
-        all_entities = pandas.concat([all_data["subject"], all_data["object"]]).unique()
-
-        small_entity_voc = {
-            entity: idx for entity, idx in zip(all_entities, range(len(all_entities)))
-        }
 
         self.relation_voc = {
             relation: idx for relation, idx in zip(relations, range(len(relations)))
@@ -92,33 +98,33 @@ class BenchmarkLibKGEDataset:
             lambda relation: self.relation_voc[relation]
         )
 
-        if self.from_scratch:
-            self.train_dataset["subject"] = self.train_dataset["subject"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
-            self.valid_dataset["subject"] = self.valid_dataset["subject"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
-            self.test_dataset["subject"] = self.test_dataset["subject"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
+        all_data = pandas.concat(
+            [self.train_dataset, self.valid_dataset, self.test_dataset]
+        )
+        all_entities = pandas.concat([all_data["subject"], all_data["object"]]).unique()
+        small_entity_voc = {
+            entity: idx for entity, idx in zip(all_entities, range(len(all_entities)))
+        }
 
-            self.train_dataset["object"] = self.train_dataset["object"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
-            self.valid_dataset["object"] = self.valid_dataset["object"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
-            self.test_dataset["object"] = self.test_dataset["object"].apply(
-                lambda entity: small_entity_voc[entity]
-            )
-
-        self.num_relations = (
-            len(self.relation_voc)
-            if self.negative_samples_ratio == 0
-            else len(self.relation_voc) + 1
+        self.train_dataset["subject"] = self.train_dataset["subject"].apply(
+            lambda entity: small_entity_voc[entity]
+        )
+        self.valid_dataset["subject"] = self.valid_dataset["subject"].apply(
+            lambda entity: small_entity_voc[entity]
+        )
+        self.test_dataset["subject"] = self.test_dataset["subject"].apply(
+            lambda entity: small_entity_voc[entity]
         )
 
+        self.train_dataset["object"] = self.train_dataset["object"].apply(
+            lambda entity: small_entity_voc[entity]
+        )
+        self.valid_dataset["object"] = self.valid_dataset["object"].apply(
+            lambda entity: small_entity_voc[entity]
+        )
+        self.test_dataset["object"] = self.test_dataset["object"].apply(
+            lambda entity: small_entity_voc[entity]
+        )
         self.num_entities = len(
             set(self.train_dataset["subject"].values)
             | set(self.train_dataset["object"].values)
@@ -126,6 +132,12 @@ class BenchmarkLibKGEDataset:
             | set(self.valid_dataset["object"].values)
             | set(self.test_dataset["subject"].values)
             | set(self.test_dataset["object"].values)
+        )
+
+        self.num_relations = (
+            len(self.relation_voc)
+            if self.negative_samples_ratio == 0
+            else len(self.relation_voc) + 1
         )
 
         so_pairs = []
@@ -222,15 +234,6 @@ class BenchmarkLibKGEDataset:
                     (self.test_inputs, self.test_negative_inputs)
                 )
                 if self.num_relations > 1:
-                    self.train_labels = numpy.hstack(
-                        (numpy.zeros((len(self.train_labels), 1)), self.train_labels)
-                    )
-                    self.valid_labels = numpy.hstack(
-                        (numpy.zeros((len(self.valid_labels), 1)), self.valid_labels)
-                    )
-                    self.test_labels = numpy.hstack(
-                        (numpy.zeros((len(self.test_labels), 1)), self.test_labels)
-                    )
                     self.train_labels = numpy.vstack(
                         (self.train_labels, self.train_negative_labels)
                     )
@@ -240,7 +243,7 @@ class BenchmarkLibKGEDataset:
                     self.test_labels = numpy.vstack(
                         (self.test_labels, self.test_negative_labels)
                     )
-                    print(self.test_labels.shape)
+                    print(self.test_labels)
                 else:
                     self.train_labels = numpy.hstack(
                         (self.train_labels, self.train_negative_labels)
@@ -262,7 +265,10 @@ class BenchmarkLibKGEDataset:
             if so_key not in one_hot_data:
                 one_hot_data[so_key] = numpy.zeros(shape=(self.num_relations,))
 
-            one_hot_data[so_key][label] = 1
+            if self.negative_samples_ratio == 0:
+                one_hot_data[so_key][label] = 1
+            else:
+                one_hot_data[so_key][label + 1] = 1
 
         return numpy.array(list(one_hot_data.keys())), numpy.array(
             list(one_hot_data.values())
@@ -285,9 +291,7 @@ class BenchmarkLibKGEDataset:
 
         negative_samples = negative_samples[:num_negatives]
         if self.num_relations > 1:
-            negative_labels = numpy.zeros(
-                (len(negative_samples), self.num_relations + 1)
-            )
+            negative_labels = numpy.zeros((len(negative_samples), self.num_relations))
             negative_labels[:, 0] = numpy.ones((len(negative_samples),))
         else:
             negative_labels = numpy.zeros((len(negative_samples),))

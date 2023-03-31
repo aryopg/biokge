@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv("env/.env")
 
 import numpy as np
-import wandb
 
+import wandb
 from src.configs import Configs
 from src.datasets.benchmark import BenchmarkLibKGEDataset
 from src.trainer import Trainer
@@ -61,6 +61,7 @@ def main():
     dataset = BenchmarkLibKGEDataset(
         configs.dataset_configs,
         task,
+        pretrained_entity_ids_path=configs.model_configs.pretrained_entity_ids_path,
         from_scratch=configs.model_configs.pretrained_path is None,
         multilabel=True,
         negative_samples_ratio=args.negative_samples_ratio,

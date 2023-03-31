@@ -209,7 +209,7 @@ if __name__ == "__main__":
         "--benchmark",
         type=str,
         default=False,
-        options=["ddi_efficacy", "ddi_minerals", "dpi_fda", "dep_fda_exp"],
+        choices=["ddi_efficacy", "ddi_minerals", "dpi_fda", "dep_fda_exp"],
     )
     args = parser.parse_args()
 

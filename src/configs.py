@@ -18,6 +18,7 @@ class RegularizerConfigs(BaseModel):
 class ModelConfigs(BaseModel):
     model_type: str = "complex"
     pretrained_path: Optional[str] = None
+    pretrained_entity_ids_path: Optional[str] = None
     adjacency_matrix: Optional[str] = None
     hidden_size: Optional[int] = 256
     regularizers: Optional[List[RegularizerConfigs]] = []
