@@ -165,5 +165,6 @@ wandb/
 outputs/
 *.pt
 *.del
+data/
 
 .DS_Store

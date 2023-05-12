@@ -38,11 +38,12 @@ The used knowledge graphs are those from the [v1.0.0 release of BIOKG](https://g
   * dpi_fda
   * dep_fda_exp
 
-Either download the datasets from the [supplementary material](https://uoe-my.sharepoint.com/:f:/g/personal/s2412861_ed_ac_uk/Eta5QmbHQndPrvyZhNPROF0BBJ1T1nXPgtlHmGjxMxbpcg?e=ZFjTQY), or download them using the [download.py](scripts/data/download.py) script:
+Download them using the [download.py](scripts/data/download.py) script:
 ```
 python scripts/data/download.py --help
 ```
-The set seed ensures that they are the same.
+The set seed ensures that they are the same as the ones used in our evaluations.
+We can also provide them upon request.
 
 The libkge dataset format is used.
 Once downloaded, dataset folders need to be moved to ``kge/data``.
