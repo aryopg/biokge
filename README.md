@@ -2,7 +2,7 @@
 <!-- A group project in the context of the [CDT in Biomedical AI](https://web.inf.ed.ac.uk/cdt/biomedical-ai), at the [University of Edinburgh](https://www.ed.ac.uk/). -->
 This repository contains code for training and finetuning for "Knowledge Graph Embeddings in the Biomedical Domain: Are They Useful? A Look at Link Prediction, Rule Learning, and Downstream Polypharmacy Tasks" (in submission)
 
-Authors: [Aryo Pradipta Gema](https://aryopg.github.io/), [Dominik Grabarzcyk](https://www.linkedin.com/in/dominik-grabarczyk/), [Wolf De Wulf](https://wolfdewulf.eu), [Piyush Borole](https://www.linkedin.com/in/piyush-borole/) [Dr. Javier Alfaro](https://www.proteogenomics.ca/), [Dr. Pasquale Minervini](https://neuralnoise.com/), [Dr. Antonio Vergari](http://nolovedeeplearning.com/), [Dr. Ajitha Rajan](https://homepages.inf.ed.ac.uk/arajan/) 
+Authors: [Aryo Pradipta Gema](https://aryopg.github.io/), [Dominik Grabarzcyk](https://www.linkedin.com/in/dominik-grabarczyk/), [Wolf De Wulf](https://wolfdewulf.eu), [Piyush Borole](https://www.linkedin.com/in/piyush-borole/), [Dr. Javier Alfaro](https://www.proteogenomics.ca/), [Dr. Pasquale Minervini](https://neuralnoise.com/), [Dr. Antonio Vergari](http://nolovedeeplearning.com/), [Dr. Ajitha Rajan](https://homepages.inf.ed.ac.uk/arajan/) 
 
 
 ## 1. Installation
